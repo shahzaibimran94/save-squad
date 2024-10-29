@@ -5,7 +5,7 @@ import { User } from './user.schema';
 
 export type UserVerificationDocument = HydratedDocument<UserVerification>;
 
-@Schema()
+@Schema({ timestamps: true })
 export class UserVerification {
   @Prop({ type: mongoose.Schema.Types.ObjectId, ref: 'User' })
   user: User;

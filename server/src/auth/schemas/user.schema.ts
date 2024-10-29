@@ -1,10 +1,10 @@
 
-import { Prop, Schema, SchemaFactory } from '@nestjs/mongoose';
+import { Prop, Schema, SchemaFactory, Virtual } from '@nestjs/mongoose';
 import { HydratedDocument } from 'mongoose';
 
 export type UserDocument = HydratedDocument<User>;
 
-@Schema()
+@Schema({ timestamps: true })
 export class User {
   @Prop()
   firstName: string;
@@ -41,6 +41,13 @@ export class User {
   
   @Prop({ default: false })
   active: boolean;
+
+  @Virtual({
+    get: function (this: User) {
+      return `${this.firstName} ${this.lastName}`;
+    },
+  })
+  fullName: string;
 }
 
 export const UserSchema = SchemaFactory.createForClass(User);
