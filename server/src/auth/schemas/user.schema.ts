@@ -37,6 +37,9 @@ export class User {
   email: string;
 
   @Prop()
+  password: string;
+
+  @Prop()
   displayPicture: string;
   
   @Prop({ default: false })
