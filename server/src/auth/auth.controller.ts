@@ -1,4 +1,5 @@
 import { Body, Controller, ForbiddenException, HttpCode, Ip, Post, Req } from '@nestjs/common';
+import { ConfigService } from '@nestjs/config';
 import { AuthService } from './auth.service';
 import { RegisterDto } from './dto/register.dto';
 
@@ -6,7 +7,8 @@ import { RegisterDto } from './dto/register.dto';
 export class AuthController {
 
     constructor(
-        private readonly authSrvc: AuthService
+        private readonly authSrvc: AuthService,
+        private readonly configSrvs: ConfigService
     ) {}
 
     @Post('register')
@@ -32,10 +34,19 @@ export class AuthController {
 
         const user = await this.authSrvc.register(payload);
 
+        const verificationCode = Math.floor(100000 + Math.random() * 900000);
+        const currentDateTime = new Date();
+        const minutes = +this.configSrvs.get<string>('SMS_CODE_EXPIRY_MINUTES');
+        const newDateTime = new Date(currentDateTime.getTime() + 1000 * 60 * minutes);
         await this.authSrvc.createVerificationInstance({
             user: user._id,
-            phoneCode: Math.floor(100000 + Math.random() * 900000)
+            phoneCode: verificationCode,
+            phoneCodeExpiry: newDateTime
         });
+
+        try {
+            await this.authSrvc.sendMessage(payload.mobile, `Verification code: ${verificationCode}`);
+        } catch (e) {}
 
         const token = this.authSrvc.generatToken(payload);
 

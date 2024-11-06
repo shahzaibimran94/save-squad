@@ -19,8 +19,14 @@ export class UserVerification {
   @Prop({ default: '' })
   phoneCode: string;
 
+  @Prop()
+  phoneCodeExpiry: Date;
+
   @Prop({ default: '' })
   emailCode: string;
+
+  @Prop()
+  emailCodeExpiry: Date;
 }
 
 export const UserVerificationSchema = SchemaFactory.createForClass(UserVerification);
