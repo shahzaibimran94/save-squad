@@ -4,28 +4,24 @@ import mongoose, { HydratedDocument } from 'mongoose';
 import { User } from 'src/auth/schemas/user.schema';
 import { SavingPod } from 'src/saving-pods/schemas/saving-pods.schema';
 
-export type TransactionDocument = HydratedDocument<Transaction>;
+export type SavingPodMemberTransactionDocument = HydratedDocument<SavingPodMemberTransaction>;
 
 @Schema({ timestamps: true })
-export class Transaction {
+export class SavingPodMemberTransaction {
   @Prop({ type: mongoose.Schema.Types.ObjectId, ref: 'User' })
   user: User;
 
   @Prop({ type: mongoose.Schema.Types.ObjectId, ref: 'SavingPod' })
   savingPod: SavingPod;
 
-  @Prop()
-  paymentStatus: string;
+  @Prop({ default: false })
+  paid: boolean;
 
-  @Prop({ type: mongoose.Schema.Types.Mixed })
-  paymentResponse: any;
+  @Prop({ default: 0.00 })
+  amountPaid: number;
 
-  @Prop({ 
-    type: String,
-    enum: ['auto', 'manual'],
-    default: 'auto' 
-  })
-  paymentSubmitted: string;
+  @Prop({ default: Date.now() })
+  paymentDate: Date;
 }
 
-export const TransactionSchema = SchemaFactory.createForClass(Transaction);
+export const SavingPodMemberTransactionSchema = SchemaFactory.createForClass(SavingPodMemberTransaction);

@@ -19,6 +19,9 @@ export class Device {
   @Prop()
   ip: string;
 
+  @Prop()
+  fcmToken: string;
+
   @Prop({ default: false })
   active: boolean;
 }

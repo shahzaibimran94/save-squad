@@ -7,6 +7,8 @@ import { AuthModule } from './auth/auth.module';
 import { DevicesModule } from './devices/devices.module';
 import { SavingPodsModule } from './saving-pods/saving-pods.module';
 import { SubscriptionsModule } from './subscriptions/subscriptions.module';
+import { StripeModule } from './stripe/stripe.module';
+import { ReferralsModule } from './referrals/referrals.module';
 
 @Module({
   imports: [
@@ -17,7 +19,9 @@ import { SubscriptionsModule } from './subscriptions/subscriptions.module';
     AuthModule,
     DevicesModule,
     SavingPodsModule,
-    SubscriptionsModule
+    SubscriptionsModule,
+    StripeModule,
+    ReferralsModule,
   ],
   controllers: [AppController],
   providers: [AppService],

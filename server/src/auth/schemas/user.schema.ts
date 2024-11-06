@@ -40,6 +40,9 @@ export class User {
   password: string;
 
   @Prop()
+  pin: string;
+
+  @Prop()
   displayPicture: string;
   
   @Prop({ default: false })
