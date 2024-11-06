@@ -1,7 +1,8 @@
-import { Body, Controller, ForbiddenException, HttpCode, Ip, Post, Req } from '@nestjs/common';
+import { Body, Controller, ForbiddenException, HttpCode, Ip, Post, Req, UnauthorizedException } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { AuthService } from './auth.service';
 import { RegisterDto } from './dto/register.dto';
+import { UserVerifyDto } from './dto/user-verify.dto';
 
 @Controller('auth')
 export class AuthController {
@@ -51,5 +52,25 @@ export class AuthController {
         const token = this.authSrvc.generatToken(payload);
 
         return { token };
+    }
+
+    @Post('verify')
+    @HttpCode(200)
+    async verifyUser(@Body() body: UserVerifyDto) {
+        let verified = false;
+
+        if (body.phoneCode) {
+            verified = await this.authSrvc.verify('phone', body.phoneCode);
+        }
+
+        if (body.emailCode) {
+            verified = await this.authSrvc.verify('email', body.emailCode);
+        }
+        
+        if (verified) {
+            return { verified };
+        }
+
+        throw new UnauthorizedException();
     }
 }

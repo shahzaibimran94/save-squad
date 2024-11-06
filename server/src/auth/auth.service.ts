@@ -38,6 +38,38 @@ export class AuthService {
         return this.verificationModel.create(payload);
     }
 
+    async verify(type: string, code: string) {
+
+        const query = {};
+        let expiryDate = '';
+        let toUpdate = '';
+        if (type === 'phone') {
+            query['phoneCode'] = code;
+            query['phoneVerified'] = false;
+            expiryDate = 'phoneCodeExpiry';
+            toUpdate = 'phoneVerified';
+        } else if (type === 'email') {
+            query['emailCode'] = code;
+            query['emailVerified'] = false;
+            expiryDate = 'emailCodeExpiry';
+            toUpdate = 'emailVerified';
+        } else {
+            return false;
+        }
+
+        const verificationInstance = await this.verificationModel.findOne(query);
+        const savedDateTime = new Date(verificationInstance[expiryDate]);
+        const currentDateTime = new Date();
+
+        if (currentDateTime < savedDateTime) {
+            verificationInstance['toUpdate'] = true;
+            await verificationInstance.save();
+            return true;
+        }
+
+        return false;
+    }
+
     generatToken(payload: any, expiresIn = '30d'): string {
         return this.jwtSrvc.sign(payload, { expiresIn });
     }
