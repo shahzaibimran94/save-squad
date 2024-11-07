@@ -3,6 +3,7 @@ import { ConfigService } from '@nestjs/config';
 import { AuthService } from './auth.service';
 import { RegisterDto } from './dto/register.dto';
 import { UserVerifyDto } from './dto/user-verify.dto';
+import { JwtAuth } from './jwt-auth.decorator';
 
 @Controller('auth')
 export class AuthController {
@@ -55,6 +56,7 @@ export class AuthController {
     }
 
     @Post('verify')
+    @JwtAuth()
     @HttpCode(200)
     async verifyUser(@Body() body: UserVerifyDto) {
         let verified = false;
@@ -66,11 +68,7 @@ export class AuthController {
         if (body.emailCode) {
             verified = await this.authSrvc.verify('email', body.emailCode);
         }
-        
-        if (verified) {
-            return { verified };
-        }
 
-        throw new UnauthorizedException();
+        return { verified };
     }
 }

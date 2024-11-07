@@ -7,9 +7,12 @@ import { UserVerification, UserVerificationSchema } from './schemas/verification
 import { JwtModule } from '@nestjs/jwt';
 import { ConfigModule, ConfigService } from '@nestjs/config';
 import { HttpModule } from '@nestjs/axios';
+import { PassportModule } from '@nestjs/passport';
+import { JwtStrategy } from './jwt.strategy';
 
 @Module({
   imports: [
+    PassportModule,
     MongooseModule.forFeature([
       { name: User.name, schema: UserSchema },
       { name: UserVerification.name, schema: UserVerificationSchema }
@@ -24,6 +27,6 @@ import { HttpModule } from '@nestjs/axios';
     HttpModule,
   ],
   controllers: [AuthController],
-  providers: [AuthService]
+  providers: [AuthService, JwtStrategy]
 })
 export class AuthModule {}

@@ -8,6 +8,7 @@ import axios from 'axios';
 import { ConfigService } from '@nestjs/config';
 import { UserVerification, UserVerificationDocument } from './schemas/verification.schema';
 import * as Twilio from 'twilio';
+import { NotFoundException } from '@nestjs/common';
 
 @Injectable()
 export class AuthService {
@@ -58,6 +59,10 @@ export class AuthService {
         }
 
         const verificationInstance = await this.verificationModel.findOne(query);
+        if (!verificationInstance) {
+            throw new NotFoundException();
+        }
+        
         const savedDateTime = new Date(verificationInstance[expiryDate]);
         const currentDateTime = new Date();
 
