@@ -5,7 +5,9 @@ import { NestExpressApplication } from '@nestjs/platform-express';
 
 async function bootstrap() {
   const app = await NestFactory.create<NestExpressApplication>(AppModule);
-  app.useGlobalPipes(new ValidationPipe());
+  app.useGlobalPipes(
+    new ValidationPipe({}),
+  );
   app.set('trust proxy', 1);
   await app.listen(process.env.PORT ?? 3000);
 }

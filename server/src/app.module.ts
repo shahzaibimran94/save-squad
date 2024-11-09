@@ -9,6 +9,7 @@ import { SavingPodsModule } from './saving-pods/saving-pods.module';
 import { SubscriptionsModule } from './subscriptions/subscriptions.module';
 import { StripeModule } from './stripe/stripe.module';
 import { ReferralsModule } from './referrals/referrals.module';
+import { MailerModule } from './mailer/mailer.module';
 
 @Module({
   imports: [
@@ -22,6 +23,7 @@ import { ReferralsModule } from './referrals/referrals.module';
     SubscriptionsModule,
     StripeModule,
     ReferralsModule,
+    MailerModule  
   ],
   controllers: [AppController],
   providers: [AppService],
