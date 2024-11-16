@@ -10,13 +10,15 @@ import { HttpModule } from '@nestjs/axios';
 import { PassportModule } from '@nestjs/passport';
 import { JwtStrategy } from './jwt.strategy';
 import { MailerModule } from 'src/mailer/mailer.module';
+import { PasswordReset, PasswordResetSchema } from './schemas/password-reset.schema';
 
 @Module({
   imports: [
     PassportModule,
     MongooseModule.forFeature([
       { name: User.name, schema: UserSchema },
-      { name: UserVerification.name, schema: UserVerificationSchema }
+      { name: UserVerification.name, schema: UserVerificationSchema },
+      { name: PasswordReset.name, schema: PasswordResetSchema },
     ]),
     JwtModule.registerAsync({
       imports: [ConfigModule],

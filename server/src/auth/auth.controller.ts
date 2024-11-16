@@ -1,6 +1,7 @@
 import { Body, Controller, ForbiddenException, HttpCode, Ip, Post, Put } from '@nestjs/common';
-import { ConfigService } from '@nestjs/config';
 import { AuthService } from './auth.service';
+import { LoginDto } from './dto/login.dto';
+import { ForgotPasswordDto, ForgotPasswordResponseDto, ResetPasswordDto, ResetPasswordResponseDto } from './dto/password-reset.dto';
 import { RegisterDto } from './dto/register.dto';
 import { UpdateUserDto } from './dto/update-user.dto';
 import { UserVerifyDto } from './dto/user-verify.dto';
@@ -11,8 +12,13 @@ export class AuthController {
 
     constructor(
         private readonly authSrvc: AuthService,
-        private readonly configSrvs: ConfigService
     ) {}
+
+    @Post('login')
+    @HttpCode(200)
+    async login(@Body() body: LoginDto) {
+        return this.authSrvc.loginUser(body);
+    }
 
     @Post('register')
     @HttpCode(200)
@@ -37,7 +43,7 @@ export class AuthController {
     @JwtAuth()
     @HttpCode(200)
     async updateUser(@Body() body: UpdateUserDto) {
-        await this.authSrvc.updateUser({ email: 'shahzaib@gmail.com' }, '672bd0c2a8cca584b1986512');
+        await this.authSrvc.updateUser(body, '672bd0c2a8cca584b1986512');
         return;
     }
 
@@ -57,4 +63,19 @@ export class AuthController {
 
         return { verified };
     }
+
+    @Post('forgot-password')
+    forgotPassword(@Body() body: ForgotPasswordDto): ForgotPasswordResponseDto {
+        return {
+            token: ''
+        }
+    }
+
+    @Post('reset-password')
+    resetPassword(@Body() body: ResetPasswordDto): ResetPasswordResponseDto {
+        return {
+            success: true
+        }
+    }
+
 }

@@ -64,12 +64,10 @@ export class User {
 
 export const UserSchema = SchemaFactory.createForClass(User);
 
-// Middleware to hash password before saving
-UserSchema.pre<User>('save', async function (next) {
-  const user = this as User as any;
-
+// Middleware to hash password on save
+UserSchema.pre<UserDocument>('save', async function (next) {
   // Only hash the password if it has been modified (or is new)
-  if (!user.isModified('password')) {
+  if (!this.isModified('password')) {
     return next();
   }
 

@@ -12,6 +12,8 @@ import { NotFoundException } from '@nestjs/common';
 import { UpdateUserDto } from './dto/update-user.dto';
 import { MailerService } from 'src/mailer/mailer.service';
 import { ForbiddenException } from '@nestjs/common';
+import { LoginDto } from './dto/login.dto';
+import { LoginResponse } from './interfaces/login.interface';
 
 @Injectable()
 export class AuthService {
@@ -38,6 +40,25 @@ export class AuthService {
         if (!localhost && country && country !== 'GB') {
             throw new ForbiddenException();
         }
+    }
+
+    async loginUser(payload: LoginDto): Promise<LoginResponse> {
+        const user = await this.userModel.findOne({ mobile: payload.mobile });
+
+        if (!user) {
+            throw new NotFoundException();
+        }
+
+        const isPasswordValid = await user.comparePassword(payload.password);
+        if (!isPasswordValid) {
+            throw new ForbiddenException();
+        }
+
+        const jwtToken = await this.generatToken(payload.mobile);
+
+        return {
+            token: jwtToken
+        };
     }
 
     findUser(payload: RegisterDto) {
@@ -70,7 +91,7 @@ export class AuthService {
         };
     }
 
-    async initiateVerification(user_id: Types.ObjectId, type: string, value: string) {
+    async initiateVerification(user_id: Types.ObjectId | string, type: string, value: string) {
         if (['phone', 'email'].indexOf(type) < 0) {
             throw new ForbiddenException();
         }
@@ -103,7 +124,7 @@ export class AuthService {
         }
     }
 
-    async getVerificationInstance(user_id: Types.ObjectId) {
+    async getVerificationInstance(user_id: Types.ObjectId | string) {
         return this.verificationModel.findOne({ user: user_id });
     }
 
@@ -141,9 +162,21 @@ export class AuthService {
     }
 
     async updateUser(payload: UpdateUserDto, user_id: string) {
-        const verificationInstance = await this.verificationModel.findOne({ user: user_id });
+        const user = await this.userModel.findOne({ _id: user_id });
 
-        return this.userModel.updateOne({ _id: user_id }, payload);
+        for (const key of Object.keys(payload)) {
+            user[key] = payload[key];
+        }
+
+        
+        if (payload.mobile) {
+            await this.initiateVerification(user_id, 'phone', payload.mobile);
+        }
+        if (payload.email) {
+            await this.initiateVerification(user_id, 'email', payload.email);
+        }
+
+        return user.save();
     }
 
     generatToken(payload: any, expiresIn = '30d'): string {
