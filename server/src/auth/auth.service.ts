@@ -1,4 +1,4 @@
-import { Injectable, InternalServerErrorException } from '@nestjs/common';
+import { Injectable } from '@nestjs/common';
 import { InjectModel } from '@nestjs/mongoose';
 import { Model, Types } from 'mongoose';
 import { RegisterDto } from './dto/register.dto';
@@ -14,6 +14,9 @@ import { MailerService } from 'src/mailer/mailer.service';
 import { ForbiddenException } from '@nestjs/common';
 import { LoginDto } from './dto/login.dto';
 import { LoginResponse } from './interfaces/login.interface';
+import { ForgotPasswordDto } from './dto/password-reset.dto';
+import { PasswordReset, PasswordResetDocument } from './schemas/password-reset.schema';
+import { v4 as uuidv4 } from 'uuid';
 
 @Injectable()
 export class AuthService {
@@ -24,9 +27,11 @@ export class AuthService {
         private readonly userModel: Model<User>,
         @InjectModel(UserVerification.name)
         private readonly verificationModel: Model<UserVerification>,
+        @InjectModel(PasswordReset.name)
+        private readonly pwdModel: Model<PasswordReset>,
         private readonly jwtSrvc: JwtService,
         private readonly configSrvc: ConfigService,
-        private readonly mailerSrvc: MailerService
+        private readonly mailerSrvc: MailerService,
     ) {
         const accountSid = this.configSrvc.get<string>('TWILIO_SID');
         const authToken = this.configSrvc.get<string>('TWILIO_TOKEN');
@@ -199,5 +204,22 @@ export class AuthService {
         } catch (error) {
         //   throw new InternalServerErrorException('Failed to send SMS');
         }
+    }
+
+    async forgotPassword(payload: ForgotPasswordDto): Promise<PasswordResetDocument> {
+        const { email } = payload;
+        const user = await this.userModel.findOne({ email });
+        if (!user) {
+            throw new NotFoundException();
+        }
+
+        const currentDateTime = new Date();
+        const minutes = +this.configSrvc.get<string>('EMAIL_CODE_EXPIRY_MINUTES');
+
+        return this.pwdModel.create({
+            user: user._id,
+            token: uuidv4(),
+            expiry: new Date(currentDateTime.getTime() + 1000 * 60 * minutes),
+        });
     }
 }

@@ -65,9 +65,12 @@ export class AuthController {
     }
 
     @Post('forgot-password')
-    forgotPassword(@Body() body: ForgotPasswordDto): ForgotPasswordResponseDto {
+    async forgotPassword(@Body() body: ForgotPasswordDto): Promise<ForgotPasswordResponseDto> {
+
+        const getToken = await this.authSrvc.forgotPassword(body);
+
         return {
-            token: ''
+            token: getToken.token
         }
     }
 
