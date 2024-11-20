@@ -54,7 +54,7 @@ export class AuthService {
             throw new NotFoundException();
         }
 
-        const isPasswordValid = await user.comparePassword(payload.password);
+        const isPasswordValid = await (user as UserDocument).comparePassword(payload.password);
         if (!isPasswordValid) {
             throw new ForbiddenException();
         }
@@ -185,7 +185,9 @@ export class AuthService {
     }
 
     generatToken(payload: any, expiresIn = '30d'): string {
-        return this.jwtSrvc.sign(payload, { expiresIn });
+        return this.jwtSrvc.sign({
+            data: payload,
+        }, { expiresIn });
     }
 
     async getIpInfo(clientIp: string) {

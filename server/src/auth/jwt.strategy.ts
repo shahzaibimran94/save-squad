@@ -13,11 +13,11 @@ export class JwtStrategy extends PassportStrategy(Strategy) {
     });
   }
 
-  async validate(payload: { mobile: string, iat: number, exp: number }) {
+  async validate(payload: { data: string, iat: number, exp: number }) {
     if (!payload) {
       throw new UnauthorizedException('Invalid token');
     }
 
-    return { mobile: payload.mobile };
+    return { mobile: payload.data };
   }
 }
