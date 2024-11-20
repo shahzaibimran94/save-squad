@@ -214,6 +214,18 @@ export class AuthService {
         }
 
         const currentDateTime = new Date();
+
+        const pwdResetInstance = await this.pwdModel.findOne({
+            user: user._id,
+            expiry: {
+                $gt: currentDateTime,
+            },
+        });
+
+        if (pwdResetInstance) {
+            return pwdResetInstance;
+        }
+
         const minutes = +this.configSrvc.get<string>('EMAIL_CODE_EXPIRY_MINUTES');
 
         return this.pwdModel.create({
