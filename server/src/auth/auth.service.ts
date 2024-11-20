@@ -14,7 +14,7 @@ import { MailerService } from 'src/mailer/mailer.service';
 import { ForbiddenException } from '@nestjs/common';
 import { LoginDto } from './dto/login.dto';
 import { LoginResponse } from './interfaces/login.interface';
-import { ForgotPasswordDto } from './dto/password-reset.dto';
+import { ForgotPasswordDto, ResetPasswordDto, ResetPasswordResponseDto } from './dto/password-reset.dto';
 import { PasswordReset, PasswordResetDocument } from './schemas/password-reset.schema';
 import { v4 as uuidv4 } from 'uuid';
 
@@ -233,5 +233,36 @@ export class AuthService {
             token: uuidv4(),
             expiry: new Date(currentDateTime.getTime() + 1000 * 60 * minutes),
         });
+    }
+
+    async resetPassword(payload: ResetPasswordDto) {
+        let success = false;
+        const { token, newPassword } = payload;
+
+        const pwdResetInstance = await this.pwdModel.findOne({
+            token: token,
+            expiry: {
+                $gt: new Date(),
+            },
+        });
+
+        if (!pwdResetInstance) {
+            throw new NotFoundException();
+        }
+
+        const user = await this.userModel.findById(pwdResetInstance.user);
+        if (!user) {
+            throw new NotFoundException();
+        }
+
+        try {
+            user.password = newPassword;
+            await user.save();
+            success = true;
+        } catch (e) {}
+
+        return {
+            success: success
+        };
     }
 }

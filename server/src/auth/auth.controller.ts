@@ -75,10 +75,8 @@ export class AuthController {
     }
 
     @Post('reset-password')
-    resetPassword(@Body() body: ResetPasswordDto): ResetPasswordResponseDto {
-        return {
-            success: true
-        }
+    async resetPassword(@Body() body: ResetPasswordDto): Promise<ResetPasswordResponseDto> {
+        return await this.authSrvc.resetPassword(body);
     }
 
 }
