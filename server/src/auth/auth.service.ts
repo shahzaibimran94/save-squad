@@ -278,6 +278,19 @@ export class AuthService {
             profileCompleted: false,
         };
 
+        const user = await this.userModel.findOne({ mobile });
+        if (!user) {
+            throw new NotFoundException();
+        }
+
+        const verificationInstance = await this.getVerificationInstance(user._id);
+        if (!verificationInstance) {
+            throw new NotFoundException();
+        }
+
+        response.phoneVerified = verificationInstance.phoneVerified;
+        response.emailVerified = verificationInstance.emailVerified;
+
         return response;
     }
 }
