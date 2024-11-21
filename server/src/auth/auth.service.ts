@@ -17,6 +17,7 @@ import { LoginResponse } from './interfaces/login.interface';
 import { ForgotPasswordDto, ResetPasswordDto, ResetPasswordResponseDto } from './dto/password-reset.dto';
 import { PasswordReset, PasswordResetDocument } from './schemas/password-reset.schema';
 import { v4 as uuidv4 } from 'uuid';
+import { UserRequirements } from './dto/user-requirements.dto';
 
 @Injectable()
 export class AuthService {
@@ -266,5 +267,17 @@ export class AuthService {
         return {
             success: success
         };
+    }
+
+    async userRequirements(mobile: string): Promise<UserRequirements> {
+        const response: UserRequirements = {
+            phoneVerified: false,
+            emailVerified: false,
+            hasPaymentMethods: false,
+            userVerified: false,
+            profileCompleted: false,
+        };
+
+        return response;
     }
 }

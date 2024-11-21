@@ -1,10 +1,12 @@
-import { Body, Controller, ForbiddenException, HttpCode, Ip, Post, Put } from '@nestjs/common';
+import { Body, Controller, ForbiddenException, HttpCode, Ip, Post, Put, Get, Request } from '@nestjs/common';
 import { AuthService } from './auth.service';
 import { LoginDto } from './dto/login.dto';
 import { ForgotPasswordDto, ForgotPasswordResponseDto, ResetPasswordDto, ResetPasswordResponseDto } from './dto/password-reset.dto';
 import { RegisterDto } from './dto/register.dto';
 import { UpdateUserDto } from './dto/update-user.dto';
+import { UserRequirements } from './dto/user-requirements.dto';
 import { UserVerifyDto } from './dto/user-verify.dto';
+import { JwtValidateResponse } from './interfaces/jwt-validate-response.interface';
 import { JwtAuth } from './jwt-auth.decorator';
 
 @Controller('auth')
@@ -77,6 +79,12 @@ export class AuthController {
     @Post('reset-password')
     async resetPassword(@Body() body: ResetPasswordDto): Promise<ResetPasswordResponseDto> {
         return await this.authSrvc.resetPassword(body);
+    }
+
+    @Get('requirements')
+    @JwtAuth()
+    async userRequirements(@Request() req): Promise<UserRequirements> {
+        return await this.authSrvc.userRequirements((req.user as JwtValidateResponse).mobile);
     }
 
 }

@@ -2,6 +2,7 @@
 import { Prop, Schema, SchemaFactory, Virtual } from '@nestjs/mongoose';
 import { HydratedDocument } from 'mongoose';
 import * as bcrypt from 'bcrypt';
+import { Address } from '../interfaces/address.interface';
 
 export type UserDocument = HydratedDocument<User> & {
   comparePassword: (plainPassword: string) => Promise<boolean>;
@@ -34,6 +35,9 @@ export class User {
   postCode: string;
 
   @Prop()
+  city: string;
+
+  @Prop()
   country: string;
 
   @Prop({ required: true })
@@ -57,6 +61,19 @@ export class User {
     },
   })
   fullName: string;
+
+  @Virtual({
+    get: function (this: User) {
+      return {
+        addressLine1: this.addressLine1,
+        addressLine2: this.addressLine2,
+        city: this.city,
+        country: this.country,
+        postcode: this.postCode,
+      };
+    },
+  })
+  address: Address;
 }
 
 export const UserSchema = SchemaFactory.createForClass(User);
