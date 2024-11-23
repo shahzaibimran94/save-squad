@@ -3,7 +3,7 @@ import { Injectable } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { InjectModel } from '@nestjs/mongoose';
 import { Model } from 'mongoose';
-import { UserInfo } from 'os';
+import { User, UserDocument } from 'src/auth/schemas/user.schema';
 import Stripe from 'stripe';
 import { StripeInfo, StripeInfoDocument } from './schemas/stripe-info.schema';
 
@@ -30,7 +30,95 @@ export class StripeService {
         return await this.stripeInfoModel.findOne({ user: userId });
     }
 
-    async userHasPaymentMethods(userId: string) {
+    async createAccount(user: UserDocument, ip: string): Promise<boolean> {
+        const customer: Stripe.Customer = await this.createCustomer(user);
+        const account: Stripe.Account = await this.createConnectAccount(user, ip);
+
+        await this.stripeInfoModel.create({
+            user: user._id,
+            customerId: customer.id,
+            accountId: account.id
+        });
+
+        return true;
+    }
+
+    async createCustomer(user: UserDocument): Promise<Stripe.Customer> {
+        return await this.stripe.customers.create({
+            name: user.fullName,
+            email: user.email,
+            phone: user.mobile,
+            address: {
+                line1: user.addressLine1,
+                line2: user.addressLine2,
+                city: user.city,
+                country: user.country,
+                postal_code: user.postCode 
+            }
+        });
+    }
+
+    async createConnectAccount(user: UserDocument, ip: string): Promise<Stripe.Account> {
+        const date = new Date(user.dob);
+        const day = date.getDate();
+        const month = date.getMonth() + 1;
+        const year = date.getFullYear();
+
+        return await await this.stripe.accounts.create({
+            country: user.country,
+            email: user.email,
+            business_type: 'individual',
+            business_profile: {
+              mcc: '7372',
+              url: 'https://smr3.co.uk',
+            },
+            capabilities: {
+              transfers: { requested: true },
+              card_payments: { requested: true },
+            },
+            tos_acceptance: {
+              date: Math.floor(Date.now() / 1000), // Current time in seconds
+              ip: ip, // Replace with the user's actual IP address
+            },
+            controller: {
+              fees: {
+                payer: 'application',
+              },
+              losses: {
+                payments: 'application',
+              },
+              requirement_collection: 'application',
+              stripe_dashboard: {
+                type: 'none',
+              },
+            },
+            individual: {
+              first_name: user.firstName,
+              last_name: user.lastName,
+              phone: user.mobile,
+              address: {
+                city: user.city,
+                line1: user.addressLine1,
+                postal_code: user.postCode,
+              },
+              dob: {
+                day: day,
+                month: month,
+                year: year,
+              },
+              email: user.email,
+            }, 
+        });
+    }
+
+    /**
+     * 
+     * Stripe customer payment method and connect account external account will be checked
+     * 
+     * @param userId 
+     * @returns 
+     */
+    async userHasPaymentMethods(userId: string): Promise<boolean> {
         let hasCard = false;
         let hasPayout = false;
 
@@ -56,5 +144,42 @@ export class StripeService {
 
     async getAccount(accountId: string): Promise<Stripe.Account> {
         return await this.stripe.accounts.retrieve(accountId);
+    }
+
+    async createPaymentMethod(token: string): Promise<string> {
+        const paymentMethod: Stripe.PaymentMethod = await this.stripe.paymentMethods.create({
+            type: 'card',
+            card: {
+                token,
+            },
+        });
+
+        return paymentMethod.id;      
+    }
+
+    async attachPaymentMethodToCustomer(token: string, customerId: string): Promise<void> {
+        const paymentMethodId = await this.createPaymentMethod(token);
+
+        await this.stripe.paymentMethods.attach(paymentMethodId, {
+            customer: customerId,
+        });
+    }
+
+    async addExternalAccount(accountId: string, token: string) {
+        await this.stripe.accounts.createExternalAccount(
+            accountId,
+            {
+                external_account: token,
+            },
+        );
+    }
+
+    async updateExternalAccount(accountId: string, token: string) {
+        await this.stripe.accounts.update(
+            accountId,
+            {
+                external_account: token,
+            }
+        );
     }
 }
