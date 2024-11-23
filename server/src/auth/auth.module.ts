@@ -1,4 +1,4 @@
-import { Module } from '@nestjs/common';
+import { Module, Global } from '@nestjs/common';
 import { MongooseModule } from '@nestjs/mongoose';
 import { AuthController } from './auth.controller';
 import { AuthService } from './auth.service';
@@ -13,6 +13,7 @@ import { MailerModule } from 'src/mailer/mailer.module';
 import { PasswordReset, PasswordResetSchema } from './schemas/password-reset.schema';
 import { StripeModule } from 'src/stripe/stripe.module';
 
+@Global()
 @Module({
   imports: [
     PassportModule,

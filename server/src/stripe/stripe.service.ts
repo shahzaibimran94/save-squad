@@ -4,6 +4,7 @@ import { ConfigService } from '@nestjs/config';
 import { InjectModel } from '@nestjs/mongoose';
 import { Model } from 'mongoose';
 import { UserDocument } from 'src/auth/schemas/user.schema';
+import { SharedService } from 'src/shared/shared.service';
 import Stripe from 'stripe';
 import { StripeInfo, StripeInfoDocument } from './schemas/stripe-info.schema';
 
@@ -15,6 +16,7 @@ export class StripeService {
         @InjectModel(StripeInfo.name)
         private readonly stripeInfoModel: Model<StripeInfo>,
         private readonly configSrvc: ConfigService,
+        private readonly sharedSrvs: SharedService
     ) {
         const stripeSecretKey = this.configSrvc.get<string>('STRIPE_SECRET_KEY');
         if (!stripeSecretKey) {
@@ -140,19 +142,19 @@ export class StripeService {
     }
 
     async addCardPaymentMethod(mobile: string, token: string): Promise<boolean> {
-        // const user = await this.sharedSrvs.getUser(mobile);
-        // if (!user) {
-        //     throw new BadRequestException();
-        // }
+        const user = await this.sharedSrvs.getUserByMobile(mobile);
+        if (!user) {
+            throw new BadRequestException();
+        }
 
-        // const stripeInfoInstance: StripeInfo = await this.getStripeInfo(user._id.toHexString());
-        // if (!stripeInfoInstance) {
-        //     throw new BadRequestException();
-        // }
+        const stripeInfoInstance: StripeInfo = await this.getStripeInfo(user._id.toHexString());
+        if (!stripeInfoInstance) {
+            throw new BadRequestException();
+        }
 
-        // const { customerId } = stripeInfoInstance;
+        const { customerId } = stripeInfoInstance;
 
-        // await this.attachPaymentMethodToCustomer(token, customerId);
+        await this.attachPaymentMethodToCustomer(token, customerId);
 
         return true;
     }

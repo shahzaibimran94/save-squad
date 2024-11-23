@@ -17,6 +17,10 @@ export class StripeController {
     async addCard(@Request() req, @Body() body: AddCardDto) {
         const mobile = (req.user as JwtValidateResponse).mobile;
 
-        return;
+        await this.service.addCardPaymentMethod(mobile, body.token);
+
+        return {
+            success: true
+        };
     }
 }
