@@ -18,6 +18,8 @@ import { ForgotPasswordDto, ResetPasswordDto, ResetPasswordResponseDto } from '.
 import { PasswordReset, PasswordResetDocument } from './schemas/password-reset.schema';
 import { v4 as uuidv4 } from 'uuid';
 import { UserRequirements } from './dto/user-requirements.dto';
+import { ContactVerified } from './dto/user-verify.dto';
+import { StripeService } from 'src/stripe/stripe.service';
 
 @Injectable()
 export class AuthService {
@@ -33,6 +35,7 @@ export class AuthService {
         private readonly jwtSrvc: JwtService,
         private readonly configSrvc: ConfigService,
         private readonly mailerSrvc: MailerService,
+        private readonly stripeSrvc: StripeService
     ) {
         const accountSid = this.configSrvc.get<string>('TWILIO_SID');
         const authToken = this.configSrvc.get<string>('TWILIO_TOKEN');
@@ -273,9 +276,9 @@ export class AuthService {
         const response: UserRequirements = {
             phoneVerified: false,
             emailVerified: false,
+            profileCompleted: false,
             hasPaymentMethods: false,
             userVerified: false,
-            profileCompleted: false,
         };
 
         const user = await this.userModel.findOne({ mobile });
@@ -283,14 +286,43 @@ export class AuthService {
             throw new NotFoundException();
         }
 
-        const verificationInstance = await this.getVerificationInstance(user._id);
+        const userId: string = user._id.toHexString();
+
+        const { phone, email } = await this.contactVerified(userId);
+        response.phoneVerified = phone;
+        response.emailVerified = email;
+
+        response.profileCompleted = this.profileCompeted(user);
+
+        response.hasPaymentMethods = await this.stripeSrvc.userHasPaymentMethods(userId);
+        
+        response.userVerified = user.active;
+
+        return response;
+    }
+
+    async contactVerified(userId: string): Promise<ContactVerified> {
+        const verificationInstance = await this.getVerificationInstance(userId);
         if (!verificationInstance) {
             throw new NotFoundException();
         }
 
-        response.phoneVerified = verificationInstance.phoneVerified;
-        response.emailVerified = verificationInstance.emailVerified;
+        return  {
+            phone: verificationInstance.phoneVerified,
+            email: verificationInstance.emailVerified
+        };
+    }
 
-        return response;
+    profileCompeted(user: User): boolean {
+        let completed = false;
+        const { dob, address, gender, displayPicture } = user;
+
+        if (dob && address && gender && displayPicture) {
+            if (address.addressLine1 && address.city && address.country && address.postcode) {
+                completed = true;
+            }
+        }
+
+        return completed;
     }
 }

@@ -11,6 +11,7 @@ import { PassportModule } from '@nestjs/passport';
 import { JwtStrategy } from './jwt.strategy';
 import { MailerModule } from 'src/mailer/mailer.module';
 import { PasswordReset, PasswordResetSchema } from './schemas/password-reset.schema';
+import { StripeModule } from 'src/stripe/stripe.module';
 
 @Module({
   imports: [
@@ -29,6 +30,7 @@ import { PasswordReset, PasswordResetSchema } from './schemas/password-reset.sch
     }),
     HttpModule,
     MailerModule,
+    StripeModule,
   ],
   controllers: [AuthController],
   providers: [AuthService, JwtStrategy]
