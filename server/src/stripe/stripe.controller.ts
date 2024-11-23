@@ -23,4 +23,17 @@ export class StripeController {
             success: true
         };
     }
+
+    @Post('add-bank')
+    @JwtAuth()
+    async addBank(@Request() req, @Body() body: AddCardDto) {
+        const mobile = (req.user as JwtValidateResponse).mobile;
+
+        await this.service.addBank(mobile, body.token);
+
+        return {
+            success: true
+        };
+    }
+
 }

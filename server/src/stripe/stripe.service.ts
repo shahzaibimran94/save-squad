@@ -159,6 +159,24 @@ export class StripeService {
         return true;
     }
 
+    async addBank(mobile: string, token: string): Promise<boolean> {
+        const user = await this.sharedSrvs.getUserByMobile(mobile);
+        if (!user) {
+            throw new BadRequestException();
+        }
+
+        const stripeInfoInstance: StripeInfo = await this.getStripeInfo(user._id.toHexString());
+        if (!stripeInfoInstance) {
+            throw new BadRequestException();
+        }
+
+        const { accountId } = stripeInfoInstance;
+
+        await this.addExternalAccount(accountId, token);
+
+        return true;
+    }
+
     async getCustomerPaymentMethods(customerId: string): Promise<Stripe.ApiList<Stripe.PaymentMethod>> {
         return await this.stripe.customers.listPaymentMethods(customerId);
     }
