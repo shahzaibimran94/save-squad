@@ -170,8 +170,8 @@ export class AuthService {
         return false;
     }
 
-    async updateUser(payload: UpdateUserDto, user_id: string) {
-        const user = await this.userModel.findOne({ _id: user_id });
+    async updateUser(mobile: string, payload: UpdateUserDto, ip: string) {
+        const user: UserDocument = await this.userModel.findOne({ mobile });
 
         for (const key of Object.keys(payload)) {
             user[key] = payload[key];
@@ -179,13 +179,32 @@ export class AuthService {
 
         
         if (payload.mobile) {
-            await this.initiateVerification(user_id, 'phone', payload.mobile);
+            await this.initiateVerification(user._id, 'phone', payload.mobile);
         }
         if (payload.email) {
-            await this.initiateVerification(user_id, 'email', payload.email);
+            await this.initiateVerification(user._id, 'email', payload.email);
         }
 
+        await this.initiateStripeRegister(user, ip);
+
         return user.save();
+    }
+
+    async initiateStripeRegister(user: UserDocument, ip: string) {
+        let register = true;
+
+        const requiredFields = ['firstName', 'lastName', 'email', 'mobile', 'gender', 'dob', 'addressLine1', 'addressLine2', 'city', 'country', 'postCode'];
+
+        for(const field of requiredFields) {
+            if (!user[field]) {
+                register = false;
+                break;
+            }
+        }
+
+        if (register) {
+            await this.stripeSrvc.createAccount(user, ip);
+        }
     }
 
     generatToken(payload: any, expiresIn = '30d'): string {

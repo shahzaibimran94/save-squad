@@ -44,8 +44,8 @@ export class AuthController {
     @Put('user')
     @JwtAuth()
     @HttpCode(200)
-    async updateUser(@Body() body: UpdateUserDto) {
-        await this.authSrvc.updateUser(body, '672bd0c2a8cca584b1986512');
+    async updateUser(@Request() req, @Ip() ip, @Body() body: UpdateUserDto) {
+        await this.authSrvc.updateUser((req.user as JwtValidateResponse).mobile, body, ip);
         return;
     }
 

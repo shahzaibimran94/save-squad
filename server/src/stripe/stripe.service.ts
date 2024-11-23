@@ -3,7 +3,7 @@ import { Injectable } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { InjectModel } from '@nestjs/mongoose';
 import { Model } from 'mongoose';
-import { User, UserDocument } from 'src/auth/schemas/user.schema';
+import { UserDocument } from 'src/auth/schemas/user.schema';
 import Stripe from 'stripe';
 import { StripeInfo, StripeInfoDocument } from './schemas/stripe-info.schema';
 
@@ -14,7 +14,7 @@ export class StripeService {
     constructor(
         @InjectModel(StripeInfo.name)
         private readonly stripeInfoModel: Model<StripeInfo>,
-        private readonly configSrvc: ConfigService  
+        private readonly configSrvc: ConfigService,
     ) {
         const stripeSecretKey = this.configSrvc.get<string>('STRIPE_SECRET_KEY');
         if (!stripeSecretKey) {
@@ -96,6 +96,7 @@ export class StripeService {
               first_name: user.firstName,
               last_name: user.lastName,
               phone: user.mobile,
+              gender: user.gender,
               address: {
                 city: user.city,
                 line1: user.addressLine1,
@@ -136,6 +137,24 @@ export class StripeService {
         }
 
         return hasCard && hasPayout;
+    }
+
+    async addCardPaymentMethod(mobile: string, token: string): Promise<boolean> {
+        // const user = await this.sharedSrvs.getUser(mobile);
+        // if (!user) {
+        //     throw new BadRequestException();
+        // }
+
+        // const stripeInfoInstance: StripeInfo = await this.getStripeInfo(user._id.toHexString());
+        // if (!stripeInfoInstance) {
+        //     throw new BadRequestException();
+        // }
+
+        // const { customerId } = stripeInfoInstance;
+
+        // await this.attachPaymentMethodToCustomer(token, customerId);
+
+        return true;
     }
 
     async getCustomerPaymentMethods(customerId: string): Promise<Stripe.ApiList<Stripe.PaymentMethod>> {
@@ -181,5 +200,24 @@ export class StripeService {
                 external_account: token,
             }
         );
+    }
+
+    async isUserVerified(userId: string): Promise<boolean> {
+        let verified = false;
+        
+        const stripeInfoInstance: StripeInfo = await this.stripeInfoModel.findOne({ user: userId });
+        if (stripeInfoInstance) {
+            const { accountId } = stripeInfoInstance;
+
+            verified = await this.accountVerified(accountId);
+        }
+
+        return verified;
+    }
+
+    private async accountVerified(accountId: string): Promise<boolean> {
+        const account: Stripe.Account = await this.stripe.accounts.retrieve(accountId);
+        
+        return account.individual.verification.status === 'verified';
     }
 }
