@@ -6,6 +6,7 @@ import { Model } from 'mongoose';
 import { UserDocument } from 'src/auth/schemas/user.schema';
 import { SharedService } from 'src/shared/shared.service';
 import Stripe from 'stripe';
+import { VerificationSessionResponse } from './interfaces/verification-session.interface';
 import { StripeInfo, StripeInfoDocument } from './schemas/stripe-info.schema';
 
 @Injectable()
@@ -175,6 +176,32 @@ export class StripeService {
         await this.addExternalAccount(accountId, token);
 
         return true;
+    }
+
+    async createVerificationSession(mobile: string): Promise<VerificationSessionResponse> {
+        const user = await this.sharedSrvs.getUserByMobile(mobile);
+        if (!user) {
+            throw new BadRequestException();
+        }
+
+        const verificationSession: Stripe.Response<Stripe.Identity.VerificationSession> = await this.stripe.identity.verificationSessions.create({
+            type: 'document',
+            metadata: {
+                user_id: user._id.toHexString()
+            },
+            options: {
+                document: {
+                    allowed_types: ['driving_license', 'id_card', 'passport'],
+                    require_id_number: true,
+                    require_live_capture: true,
+                    require_matching_selfie: true
+                }
+            }
+        });
+
+        return {
+            client_secret: verificationSession.client_secret
+        };
     }
 
     async getCustomerPaymentMethods(customerId: string): Promise<Stripe.ApiList<Stripe.PaymentMethod>> {
