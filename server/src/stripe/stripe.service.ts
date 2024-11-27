@@ -67,13 +67,16 @@ export class StripeService {
         const month = date.getMonth() + 1;
         const year = date.getFullYear();
 
-        return await await this.stripe.accounts.create({
+        return await this.stripe.accounts.create({
             country: user.country,
             email: user.email,
             business_type: 'individual',
             business_profile: {
               mcc: '7372',
               url: 'https://smr3.co.uk',
+            },
+            metadata: {
+                user_id: user._id.toHexString()
             },
             capabilities: {
               transfers: { requested: true },
