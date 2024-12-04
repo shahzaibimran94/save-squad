@@ -10,6 +10,8 @@ import { SubscriptionsModule } from './subscriptions/subscriptions.module';
 import { StripeModule } from './stripe/stripe.module';
 import { ReferralsModule } from './referrals/referrals.module';
 import { MailerModule } from './mailer/mailer.module';
+import { LoggingService } from './logger/logger.service';
+import { Log, LogSchema } from './logger/schemas/logger.schema';
 
 @Module({
   imports: [
@@ -17,6 +19,9 @@ import { MailerModule } from './mailer/mailer.module';
       isGlobal: true
     }),
     MongooseModule.forRoot(`${process.env.MONGO_DB_URL}/${process.env.MONGO_DB_NAME}`),
+    MongooseModule.forFeature([
+      { name: Log.name, schema: LogSchema }
+    ]),
     AuthModule,
     DevicesModule,
     SavingPodsModule,
@@ -26,6 +31,6 @@ import { MailerModule } from './mailer/mailer.module';
     MailerModule  
   ],
   controllers: [AppController],
-  providers: [AppService],
+  providers: [AppService, LoggingService],
 })
 export class AppModule {}
