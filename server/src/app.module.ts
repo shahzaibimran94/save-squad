@@ -12,9 +12,18 @@ import { ReferralsModule } from './referrals/referrals.module';
 import { MailerModule } from './mailer/mailer.module';
 import { LoggingService } from './logger/logger.service';
 import { Log, LogSchema } from './logger/schemas/logger.schema';
+import { ThrottlerModule } from '@nestjs/throttler';
 
 @Module({
   imports: [
+    ThrottlerModule.forRoot({
+      throttlers: [
+        {
+          ttl: 60,
+          limit: 10
+        }
+      ]
+    }),
     ConfigModule.forRoot({
       isGlobal: true
     }),
