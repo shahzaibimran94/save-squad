@@ -8,6 +8,7 @@ import { UserSubscription, UserSubscriptionDocument } from './schemas/user-subsc
 import { Subscription } from './schemas/subscriptions.schema';
 import mongoose from 'mongoose';
 import { IUserSubscription } from './interfaces/user-subscription.interface';
+import { ConflictException } from '@nestjs/common';
 
 @Injectable()
 export class SubscriptionsService {
@@ -24,6 +25,11 @@ export class SubscriptionsService {
         const _user = await this.sharedSrvc.getUserByMobile(user.mobile);
         if (!user) {
             throw new BadRequestException();
+        }
+
+        const userSubscription = await this.getUserSubscription(user);
+        if (userSubscription) {
+            throw new ConflictException();
         }
 
         return await this.userSubscriptionModel.create({
