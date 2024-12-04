@@ -11,15 +11,33 @@ module.exports = {
         features: [
           {
             _id: new ObjectId(),
-            name: '3x Pods'
+            name: '3 Active Pods per Month',
+            system: 'pods',
+            value: 3
           },
           {
             _id: new ObjectId(),
-            name: '5x Members per pod'
+            name: '5 Members per Pod',
+            system: 'members',
+            value: 5
           },
           {
             _id: new ObjectId(),
-            name: '3000 Max pod amount'
+            name: '3 Active Pods member per Month',
+            system: 'pods-member',
+            value: 3
+          },
+          {
+            _id: new ObjectId(),
+            name: '500 Min Amount per pod',
+            system: 'pod-min-amount',
+            value: 500
+          },
+          {
+            _id: new ObjectId(),
+            name: '3000 Max Amount per pod',
+            system: 'pod-max-amount',
+            value: 3000
           }
         ],
         active: true
@@ -31,15 +49,33 @@ module.exports = {
         features: [
           {
             _id: new ObjectId(),
-            name: '8x Pods'
+            name: '8 Active Pods per Month',
+            system: 'pods',
+            value: 8
           },
           {
             _id: new ObjectId(),
-            name: '15x Members per pod'
+            name: '12 Members per Pod',
+            system: 'members',
+            value: 12
           },
           {
             _id: new ObjectId(),
-            name: '10,000 Max pod amount'
+            name: '8 Active Pods member per Month',
+            system: 'pods-member',
+            value: 8
+          },
+          {
+            _id: new ObjectId(),
+            name: '3200 Min Amount per pod',
+            system: 'pod-min-amount',
+            value: 3200
+          },
+          {
+            _id: new ObjectId(),
+            name: '10,000 Max Amount per pod',
+            system: 'pod-max-amount',
+            value: 10000
           }
         ],
         active: true 
