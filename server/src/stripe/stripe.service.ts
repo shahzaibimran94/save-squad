@@ -3,6 +3,7 @@ import { Injectable } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { InjectModel } from '@nestjs/mongoose';
 import { Model } from 'mongoose';
+import { JwtValidateResponse } from 'src/auth/interfaces/jwt-validate-response.interface';
 import { UserDocument } from 'src/auth/schemas/user.schema';
 import { SharedService } from 'src/shared/shared.service';
 import Stripe from 'stripe';
@@ -17,7 +18,6 @@ export class StripeService {
         @InjectModel(StripeInfo.name)
         private readonly stripeInfoModel: Model<StripeInfo>,
         private readonly configSrvc: ConfigService,
-        private readonly sharedSrvs: SharedService
     ) {
         const stripeSecretKey = this.configSrvc.get<string>('STRIPE_SECRET_KEY');
         if (!stripeSecretKey) {
@@ -145,13 +145,8 @@ export class StripeService {
         return hasCard && hasPayout;
     }
 
-    async addCardPaymentMethod(mobile: string, token: string): Promise<boolean> {
-        const user = await this.sharedSrvs.getUserByMobile(mobile);
-        if (!user) {
-            throw new BadRequestException();
-        }
-
-        const stripeInfoInstance: StripeInfo = await this.getStripeInfo(user._id.toHexString());
+    async addCardPaymentMethod(user: JwtValidateResponse, token: string): Promise<boolean> {
+        const stripeInfoInstance: StripeInfo = await this.getStripeInfo(user.id);
         if (!stripeInfoInstance) {
             throw new BadRequestException();
         }
@@ -163,13 +158,8 @@ export class StripeService {
         return true;
     }
 
-    async addBank(mobile: string, token: string): Promise<boolean> {
-        const user = await this.sharedSrvs.getUserByMobile(mobile);
-        if (!user) {
-            throw new BadRequestException();
-        }
-
-        const stripeInfoInstance: StripeInfo = await this.getStripeInfo(user._id.toHexString());
+    async addBank(user: JwtValidateResponse, token: string): Promise<boolean> {
+        const stripeInfoInstance: StripeInfo = await this.getStripeInfo(user.id);
         if (!stripeInfoInstance) {
             throw new BadRequestException();
         }
@@ -181,16 +171,11 @@ export class StripeService {
         return true;
     }
 
-    async createVerificationSession(mobile: string): Promise<VerificationSessionResponse> {
-        const user = await this.sharedSrvs.getUserByMobile(mobile);
-        if (!user) {
-            throw new BadRequestException();
-        }
-
+    async createVerificationSession(user: JwtValidateResponse): Promise<VerificationSessionResponse> {
         const verificationSession: Stripe.Response<Stripe.Identity.VerificationSession> = await this.stripe.identity.verificationSessions.create({
             type: 'document',
             metadata: {
-                user_id: user._id.toHexString()
+                user_id: user.id
             },
             options: {
                 document: {

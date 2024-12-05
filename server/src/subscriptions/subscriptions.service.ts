@@ -18,22 +18,16 @@ export class SubscriptionsService {
         private readonly subscriptionModel: Model<Subscription>,
         @InjectModel(UserSubscription.name)
         private readonly userSubscriptionModel: Model<UserSubscription>,
-        private readonly sharedSrvc: SharedService
     ) {}
 
     async saveUserSubscription(user: JwtValidateResponse, id: string): Promise<UserSubscriptionDocument> {
-        const _user = await this.sharedSrvc.getUserByMobile(user.mobile);
-        if (!user) {
-            throw new BadRequestException();
-        }
-
         const userSubscription = await this.getUserSubscription(user);
         if (userSubscription) {
             throw new ConflictException();
         }
 
         return await this.userSubscriptionModel.create({
-            user: _user.id,
+            user: user.id,
             subscription: id,
             activationDate: Date.now(),
             active: true
@@ -41,12 +35,7 @@ export class SubscriptionsService {
     }
 
     async getUserSubscription(user: JwtValidateResponse): Promise<IUserSubscription> {
-        const _user = await this.sharedSrvc.getUserByMobile(user.mobile);
-        if (!user) {
-            throw new BadRequestException();
-        }
-
-        const userSubscription: UserSubscription = await this.userSubscriptionModel.findOne({ user: _user._id });
+        const userSubscription: UserSubscription = await this.userSubscriptionModel.findOne({ user: user.id });
         if (!userSubscription) {
             throw new BadRequestException();
         }

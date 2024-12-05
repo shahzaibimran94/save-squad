@@ -9,16 +9,13 @@ export type SavingPodDocument = HydratedDocument<SavingPod>;
 @Schema({ timestamps: true })
 export class SavingPod {
   @Prop({ type: mongoose.Schema.Types.ObjectId, ref: 'User' })
-  admin: User;
+  user: User;
 
   @Prop({ required: true })
   amount: number;
 
-  @Prop({ required: true })
+  @Prop()
   startDate: Date;
-
-  @Prop({ required: true })
-  noOfMonths: number;
 
   @Prop({
       type: [

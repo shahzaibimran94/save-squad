@@ -74,6 +74,19 @@ export class User {
     },
   })
   address: Address;
+
+  @Virtual({
+    get: function (this: User) {
+      return {
+        mobile: this.mobile,
+        email: this.email,
+      };
+    },
+  })
+  info: {
+    mobile: string;
+    email: string;
+  };
 }
 
 export const UserSchema = SchemaFactory.createForClass(User);

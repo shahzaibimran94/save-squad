@@ -16,9 +16,7 @@ export class StripeController {
     @Post('add-card')
     @JwtAuth()
     async addCard(@Request() req, @Body() body: AddCardDto) {
-        const mobile = (req.user as JwtValidateResponse).mobile;
-
-        await this.service.addCardPaymentMethod(mobile, body.token);
+        await this.service.addCardPaymentMethod(req.user, body.token);
 
         return {
             success: true
@@ -28,9 +26,7 @@ export class StripeController {
     @Post('add-bank')
     @JwtAuth()
     async addBank(@Request() req, @Body() body: AddCardDto) {
-        const mobile = (req.user as JwtValidateResponse).mobile;
-
-        await this.service.addBank(mobile, body.token);
+        await this.service.addBank(req.user, body.token);
 
         return {
             success: true
@@ -39,9 +35,7 @@ export class StripeController {
 
     @Post('verification-session')
     async createVerificationSession(@Request() req): Promise<VerificationSessionResponse> {
-        const mobile = (req.user as JwtValidateResponse).mobile;
-
-        return await this.service.createVerificationSession(mobile);
+        return await this.service.createVerificationSession(req.user);
     }
 
 }
