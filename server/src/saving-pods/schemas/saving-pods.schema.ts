@@ -40,6 +40,9 @@ export class SavingPod {
   members: Member[];
 
   @Prop({ default: false })
+  expired: boolean;
+
+  @Prop({ default: false })
   active: boolean;
 }
 

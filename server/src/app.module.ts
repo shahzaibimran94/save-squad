@@ -13,6 +13,8 @@ import { MailerModule } from './mailer/mailer.module';
 import { LoggingService } from './logger/logger.service';
 import { Log, LogSchema } from './logger/schemas/logger.schema';
 import { ThrottlerModule } from '@nestjs/throttler';
+import { SubscriptionInterceptor } from './subscriptions/subscription.interceptor';
+import { APP_INTERCEPTOR } from '@nestjs/core';
 
 @Module({
   imports: [
@@ -33,13 +35,20 @@ import { ThrottlerModule } from '@nestjs/throttler';
     ]),
     AuthModule,
     DevicesModule,
-    SavingPodsModule,
     SubscriptionsModule,
+    SavingPodsModule,
     StripeModule,
     ReferralsModule,
     MailerModule  
   ],
   controllers: [AppController],
-  providers: [AppService, LoggingService],
+  providers: [
+    AppService, 
+    LoggingService,
+    {
+      provide: APP_INTERCEPTOR,
+      useClass: SubscriptionInterceptor
+    }
+  ],
 })
 export class AppModule {}

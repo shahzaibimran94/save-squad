@@ -3,7 +3,6 @@ import { Injectable } from '@nestjs/common';
 import { InjectModel } from '@nestjs/mongoose';
 import { Model } from 'mongoose';
 import { JwtValidateResponse } from 'src/auth/interfaces/jwt-validate-response.interface';
-import { SharedService } from 'src/shared/shared.service';
 import { UserSubscription, UserSubscriptionDocument } from './schemas/user-subscriptions.schema';
 import { Subscription } from './schemas/subscriptions.schema';
 import mongoose from 'mongoose';
