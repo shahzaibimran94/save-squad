@@ -2,9 +2,9 @@ import { ForbiddenException } from '@nestjs/common';
 import { Injectable } from '@nestjs/common';
 import { InjectModel } from '@nestjs/mongoose';
 import { Model } from 'mongoose';
-import { JwtValidateResponse } from 'src/auth/interfaces/jwt-validate-response.interface';
 import { JwtAndSubscription } from 'src/subscriptions/interfaces/jwt-with-subscription.interface';
 import { CreatePodDto } from './dto/create-pod.dto';
+import { InvitationStatus } from './interfaces/member.interface';
 import { SavingPod, SavingPodDocument } from './schemas/saving-pods.schema';
 
 @Injectable()
@@ -52,5 +52,31 @@ export class SavingPodsService {
 
     async getUserPods(userId: string): Promise<SavingPodDocument[]> {
         return await this.savingPodModel.find({ user: userId, expired: false });
+    }
+
+    async getUserActivePods(request: JwtAndSubscription): Promise<SavingPodDocument[]> {
+        return await this.savingPodModel.find({ user: request.user.id, active: true, expired: false });
+    }
+
+    /**
+     * 
+     * @param request {JwtAndSubscription}
+     * 
+     * User will be searched in pods members data and 
+     * if user is a member in any of the pods and it is active then pod will be picked
+     * 
+     * @returns {SavingPodDocument[]}
+     */
+    async getMemberPods(request: JwtAndSubscription) {
+        return await this.savingPodModel.find({
+            members: {
+                $elemMatch: {
+                    user: request.user.id,
+                    invitationStatus: {
+                        $ne: InvitationStatus.DECLINED
+                    }
+                }
+            }
+        });
     }
 }
