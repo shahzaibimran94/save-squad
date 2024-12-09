@@ -14,7 +14,7 @@ export class SavingPod {
   @Prop({ required: true })
   amount: number;
 
-  @Prop()
+  @Prop({ default: null })
   startDate: Date;
 
   @Prop({
@@ -32,7 +32,7 @@ export class SavingPod {
             addedAt: {
                 type: Date,
                 default: Date.now()
-            }
+            },
         }
       ],
       default: []
@@ -42,7 +42,7 @@ export class SavingPod {
   @Prop({ default: false })
   expired: boolean;
 
-  @Prop({ default: false })
+  @Prop({ default: true })
   active: boolean;
 }
 

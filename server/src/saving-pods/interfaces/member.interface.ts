@@ -8,6 +8,13 @@ export enum InvitationStatus {
 
 export interface Member {
     user: mongoose.Schema.Types.ObjectId;
+    name?: string;
     invitationStatus: { type: String, default: InvitationStatus.PENDING };
     addedAt: Date;
+}
+
+export interface MemberPod {
+    amount: number;
+    startDate: Date | null;
+    members: Omit<Member, 'addedAt'>[]
 }
