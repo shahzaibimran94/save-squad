@@ -5,6 +5,44 @@ module.exports = {
     // Define the records to be added
     const records = [
       { 
+        name: 'Free', 
+        price: '0.00', 
+        currency: 'gbp', 
+        features: [
+          {
+            _id: new ObjectId(),
+            name: '1 Active Pods per Month',
+            system: 'pods',
+            value: 1
+          },
+          {
+            _id: new ObjectId(),
+            name: '5 Members per Pod',
+            system: 'members',
+            value: 5
+          },
+          {
+            _id: new ObjectId(),
+            name: '1 Active Pods member per Month',
+            system: 'pods-member',
+            value: 1
+          },
+          {
+            _id: new ObjectId(),
+            name: '50 Min Amount per pod',
+            system: 'pod-min-amount',
+            value: 50
+          },
+          {
+            _id: new ObjectId(),
+            name: '500 Max Amount per pod',
+            system: 'pod-max-amount',
+            value: 500
+          }
+        ],
+        active: true
+      },
+      { 
         name: 'Basic', 
         price: '4.99', 
         currency: 'gbp', 
