@@ -1,7 +1,7 @@
 import { ForbiddenException } from '@nestjs/common';
 import { Injectable } from '@nestjs/common';
 import { InjectModel } from '@nestjs/mongoose';
-import { Model } from 'mongoose';
+import { Model, Types } from 'mongoose';
 import { JwtAndSubscription } from 'src/subscriptions/interfaces/jwt-with-subscription.interface';
 import { CreatePodDto } from './dto/create-pod.dto';
 import { InvitationStatus, Member, MemberPod } from './interfaces/member.interface';
@@ -15,6 +15,8 @@ import * as crypto from "crypto";
 import { MailerService } from 'src/mailer/mailer.service';
 import { ConfigService } from '@nestjs/config';
 import { SharedService } from 'src/shared/shared.service';
+import { InvitationUser } from './interfaces/invitation-user.interface';
+import { GenericResponse } from 'src/shared/interfaces/common.interface';
 
 @Injectable()
 export class SavingPodsService {
@@ -217,7 +219,7 @@ export class SavingPodsService {
         const expiresAt = new Date();
         expiresAt.setHours(expiresAt.getHours() + 24);
         const instancesToCreate = [];
-        const users: any = [];
+        const users: InvitationUser[] = [];
         for (const member of members) {
             const fullName = `${member.user['firstName']} ${member.user['lastName']}`
             const mobile = member.user['mobile'];
@@ -230,20 +232,21 @@ export class SavingPodsService {
                 email
             });
             instancesToCreate.push({
+                member: member['_id'],
                 pod: podId,
                 token: token,
                 expiresAt: expiresAt
             });
         }
 
-        const emailsToSend: any = [];
-        const messagesToSend: any = [];
+        const emailsToSend: Promise<any>[] = [];
+        const messagesToSend: Promise<any>[] = [];
         const inviteInstances = await this.savingPodInviteModel.insertMany(instancesToCreate);
         for (const [index, invitation] of Array.from(inviteInstances.entries())) {
-            const invitationLink = `${this.configSrvc.get('APP_URL')}/saving-pods/${invitation._id}/${invitation.token}`;
+            const invitationLink = `${this.configSrvc.get('APP_URL')}/saving-pods/${invitation.token}`;
             const user = users[index];
 
-            emailsToSend.push(await this.mailerSrvc.sendMail(
+            emailsToSend.push(this.mailerSrvc.sendMail(
                 user.email,
                 'Invitation to join a Saving Pod',
                 'Please click the link to join a Saving Pod!',
@@ -254,12 +257,50 @@ export class SavingPodsService {
                 </p>`,
             ));
 
-            messagesToSend.push(
-                await this.sharedSrvc.sendMessage(user.mobile, `Please click the link to join a Saving Pod: ${invitationLink}`)
-            );
+            messagesToSend.push(this.sharedSrvc.sendMessage(user.mobile, `Please click the link to join a Saving Pod: ${invitationLink}`));
         }
 
         await Promise.allSettled([...emailsToSend, ...messagesToSend]);
+    }
+
+    async joinSavingPod(token: string): Promise<GenericResponse> {
+        const invitation = await this.savingPodInviteModel.findOne({ 
+            token, 
+            isUsed: false,
+            expiresAt: { $gte: new Date() } 
+        });
+        if (!invitation) {
+            throw new NotFoundException();
+        }
+
+        const savingPod = await this.getPodInstance(invitation.pod as unknown as string);
+        if (savingPod.expired) {
+            throw new NotFoundException();
+        }
+
+        const response = {
+            success: true
+        };
+        try {
+            savingPod.members = [...savingPod.members.map(member => {
+                const memberId = member['_id'] as unknown as Types.ObjectId;
+                if (memberId.toHexString() === invitation.member) {
+                    return {
+                        ...member,
+                        invitationStatus: InvitationStatus.ACCEPTED
+                    };
+                }
+                return member;
+            })] as unknown as Member[];
+            await savingPod.save();
+    
+            invitation.isUsed = true;
+            await invitation.save();
+        } catch(e) {
+            response.success = false;
+        }
+
+        return response;
     }
 
     generateSecureToken(): string {

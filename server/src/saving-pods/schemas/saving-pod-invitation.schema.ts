@@ -11,6 +11,9 @@ export class SavingPodInvitation {
   pod: SavingPod;
 
   @Prop({ required: true })
+  member: string;
+
+  @Prop({ required: true })
   token: string;
 
   @Prop({ required: true })

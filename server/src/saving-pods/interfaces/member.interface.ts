@@ -7,6 +7,7 @@ export enum InvitationStatus {
 }
 
 export interface Member {
+    _id?: mongoose.Schema.Types.ObjectId;
     user: mongoose.Schema.Types.ObjectId | string;
     name?: string;
     invitationStatus?: { type: String, default: InvitationStatus.PENDING };
