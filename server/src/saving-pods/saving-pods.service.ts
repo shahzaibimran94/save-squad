@@ -206,7 +206,7 @@ export class SavingPodsService {
         await this.sendNotificationToPodMembers(podId);
 
         return {
-            success: !!updateResponse.isModified
+            success: true
         };
     }
 
