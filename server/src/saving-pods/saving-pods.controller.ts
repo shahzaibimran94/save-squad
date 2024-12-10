@@ -32,4 +32,11 @@ export class SavingPodsController {
         return await this.service.getMemberPods(req);
     }
 
+    // @Post('join/:inviteId/:token')
+    // async acceptInvitation() {
+    //     await this.service.sendNotificationToPodMembers('67575bd1a91d835931635089');
+
+    //     return { success: true };
+    // }
+
 }

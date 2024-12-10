@@ -12,6 +12,7 @@ import { JwtStrategy } from './jwt.strategy';
 import { MailerModule } from 'src/mailer/mailer.module';
 import { PasswordReset, PasswordResetSchema } from './schemas/password-reset.schema';
 import { StripeModule } from 'src/stripe/stripe.module';
+import { SharedModule } from 'src/shared/shared.module';
 
 @Global()
 @Module({
@@ -32,6 +33,7 @@ import { StripeModule } from 'src/stripe/stripe.module';
     HttpModule,
     MailerModule,
     StripeModule,
+    SharedModule
   ],
   controllers: [AuthController],
   providers: [AuthService, JwtStrategy]

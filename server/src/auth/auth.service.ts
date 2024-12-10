@@ -7,7 +7,6 @@ import { JwtService } from '@nestjs/jwt';
 import axios from 'axios';
 import { ConfigService } from '@nestjs/config';
 import { UserVerification, UserVerificationDocument } from './schemas/verification.schema';
-import * as Twilio from 'twilio';
 import { NotFoundException } from '@nestjs/common';
 import { UpdateUserDto } from './dto/update-user.dto';
 import { MailerService } from 'src/mailer/mailer.service';
@@ -20,10 +19,10 @@ import { v4 as uuidv4 } from 'uuid';
 import { UserRequirements } from './dto/user-requirements.dto';
 import { ContactVerified } from './dto/user-verify.dto';
 import { StripeService } from 'src/stripe/stripe.service';
+import { SharedService } from 'src/shared/shared.service';
 
 @Injectable()
 export class AuthService {
-    private twilioClient: Twilio.Twilio;
 
     constructor(
         @InjectModel(User.name)
@@ -35,12 +34,9 @@ export class AuthService {
         private readonly jwtSrvc: JwtService,
         private readonly configSrvc: ConfigService,
         private readonly mailerSrvc: MailerService,
-        private readonly stripeSrvc: StripeService
-    ) {
-        const accountSid = this.configSrvc.get<string>('TWILIO_SID');
-        const authToken = this.configSrvc.get<string>('TWILIO_TOKEN');
-        this.twilioClient = Twilio(accountSid, authToken);
-    }
+        private readonly stripeSrvc: StripeService,
+        private readonly sharedSrvs: SharedService
+    ) {}
 
     async isUKCustomer(ip: string) {
         const ipInfo = await this.getIpInfo(ip);
@@ -122,7 +118,7 @@ export class AuthService {
         }
 
         if (type === 'phone') {
-            await this.sendMessage(value, `Save Squad Verification Code: ${verificationCode}`);
+            await this.sharedSrvs.sendMessage(value, `Save Squad Verification Code: ${verificationCode}`);
         } else if (type === 'email') {
             await this.mailerSrvc.sendMail(
                 value,
@@ -216,19 +212,6 @@ export class AuthService {
     async getIpInfo(clientIp: string) {
         const IP_INFO_TOKEN = this.configSrvc.get<string>('IP_INFO_TOKEN')
         return await axios.get(`https://ipinfo.io/${clientIp}?token=${IP_INFO_TOKEN}`);
-    }
-
-    async sendMessage(to: string, body: string): Promise<void> {
-        try {
-          const from = this.configSrvc.get<string>('TWILIO_PHONE_NUMBER');
-          await this.twilioClient.messages.create({
-            body,
-            from,
-            to,
-          });
-        } catch (error) {
-        //   throw new InternalServerErrorException('Failed to send SMS');
-        }
     }
 
     async forgotPassword(payload: ForgotPasswordDto): Promise<PasswordResetDocument> {

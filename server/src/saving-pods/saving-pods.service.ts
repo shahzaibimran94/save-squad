@@ -10,13 +10,23 @@ import { SavingPod as ISavingPod } from './interfaces/create-pod-response.interf
 import { UpdateSavingPodDto } from './dto/update-pod.dto';
 import { SubscriptionOptions } from 'src/subscriptions/interfaces/user-subscription.interface';
 import { NotFoundException } from '@nestjs/common';
+import { SavingPodInvitation } from './schemas/saving-pod-invitation.schema';
+import * as crypto from "crypto";
+import { MailerService } from 'src/mailer/mailer.service';
+import { ConfigService } from '@nestjs/config';
+import { SharedService } from 'src/shared/shared.service';
 
 @Injectable()
 export class SavingPodsService {
     
     constructor(
         @InjectModel(SavingPod.name)
-        private readonly savingPodModel: Model<SavingPod>
+        private readonly savingPodModel: Model<SavingPod>,
+        @InjectModel(SavingPodInvitation.name)
+        private readonly savingPodInviteModel: Model<SavingPodInvitation>,
+        private readonly mailerSrvc: MailerService,
+        private readonly configSrvc: ConfigService,
+        private readonly sharedSrvc: SharedService
     ) {}
 
     async createPod(request: JwtAndSubscription, dto: CreatePodDto): Promise<ISavingPod> {
@@ -204,20 +214,56 @@ export class SavingPodsService {
         const savingPod = await this.getPodWithUserEmailPhone(podId);
         const members = savingPod.members.filter((member: Member) => (member.invitationStatus as any) === InvitationStatus.PENDING);
 
-        const sendMessageTo: string[] = [];
-        const sendEmailTo: string[] = [];
+        const expiresAt = new Date();
+        expiresAt.setHours(expiresAt.getHours() + 24);
+        const instancesToCreate = [];
+        const users: any = [];
         for (const member of members) {
-            sendMessageTo.push(member.user['mobile']);
-            sendEmailTo.push(member.user['email']);
+            const fullName = `${member.user['firstName']} ${member.user['lastName']}`
+            const mobile = member.user['mobile'];
+            const email = member.user['email'];
+            const token = this.generateSecureToken();
+
+            users.push({
+                name: fullName,
+                mobile,
+                email
+            });
+            instancesToCreate.push({
+                pod: podId,
+                token: token,
+                expiresAt: expiresAt
+            });
         }
 
-        if (sendMessageTo.length) {
-            // send message to all
+        const emailsToSend: any = [];
+        const messagesToSend: any = [];
+        const inviteInstances = await this.savingPodInviteModel.insertMany(instancesToCreate);
+        for (const [index, invitation] of Array.from(inviteInstances.entries())) {
+            const invitationLink = `${this.configSrvc.get('APP_URL')}/saving-pods/${invitation._id}/${invitation.token}`;
+            const user = users[index];
+
+            emailsToSend.push(await this.mailerSrvc.sendMail(
+                user.email,
+                'Invitation to join a Saving Pod',
+                'Please click the link to join a Saving Pod!',
+                `<h1>Hi ${user.name}!</h1><p>Please click the link to join a Saving Pod!<p>
+                    <a href="${invitationLink}" style="color: #1a82e2; text-decoration: none; font-weight: bold;">
+                        Join Saving Pod
+                    </a>
+                </p>`,
+            ));
+
+            messagesToSend.push(
+                await this.sharedSrvc.sendMessage(user.mobile, `Please click the link to join a Saving Pod: ${invitationLink}`)
+            );
         }
 
-        if (sendEmailTo.length) {
-            // send email to all
-        }
+        await Promise.allSettled([...emailsToSend, ...messagesToSend]);
+    }
+
+    generateSecureToken(): string {
+        return crypto.randomBytes(32).toString("hex"); // Generates a 64-character hex token
     }
 
     private validatePodAmount(amount: number, subcriptionOptions: SubscriptionOptions) {
