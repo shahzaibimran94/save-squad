@@ -7,10 +7,10 @@ export enum InvitationStatus {
 }
 
 export interface Member {
-    user: mongoose.Schema.Types.ObjectId;
+    user: mongoose.Schema.Types.ObjectId | string;
     name?: string;
-    invitationStatus: { type: String, default: InvitationStatus.PENDING };
-    addedAt: Date;
+    invitationStatus?: { type: String, default: InvitationStatus.PENDING };
+    addedAt?: Date;
 }
 
 export interface MemberPod {

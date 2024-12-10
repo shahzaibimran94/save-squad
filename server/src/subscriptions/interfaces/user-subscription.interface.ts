@@ -1,7 +1,9 @@
 export interface IUserSubscription {
     name: string;
     currency: string;
-    options: {
-        [key: string]: number;
-    };
+    options: SubscriptionOptions;
+}
+
+export interface SubscriptionOptions {
+    [key: string]: number;
 }
