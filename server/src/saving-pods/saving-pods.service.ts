@@ -202,7 +202,22 @@ export class SavingPodsService {
 
     async sendNotificationToPodMembers(podId: string): Promise<void> {
         const savingPod = await this.getPodWithUserEmailPhone(podId);
-        
+        const members = savingPod.members.filter((member: Member) => (member.invitationStatus as any) === InvitationStatus.PENDING);
+
+        const sendMessageTo: string[] = [];
+        const sendEmailTo: string[] = [];
+        for (const member of members) {
+            sendMessageTo.push(member.user['mobile']);
+            sendEmailTo.push(member.user['email']);
+        }
+
+        if (sendMessageTo.length) {
+            // send message to all
+        }
+
+        if (sendEmailTo.length) {
+            // send email to all
+        }
     }
 
     private validatePodAmount(amount: number, subcriptionOptions: SubscriptionOptions) {
