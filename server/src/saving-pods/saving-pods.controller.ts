@@ -1,6 +1,6 @@
 import { Get, Param } from '@nestjs/common';
 import { UseInterceptors } from '@nestjs/common';
-import { Controller, Post, Request, Body } from '@nestjs/common';
+import { Controller, Post, Request, Body, Put } from '@nestjs/common';
 import { JwtAuth } from 'src/auth/jwt-auth.decorator';
 import { GenericResponse } from 'src/shared/interfaces/common.interface';
 import { SubscriptionInterceptor } from 'src/subscriptions/subscription.interceptor';
@@ -9,6 +9,7 @@ import { MemberPod } from './interfaces/member.interface';
 import { SavingPodsService } from './saving-pods.service';
 import { SavingPodDocument } from './schemas/saving-pods.schema';
 import { SavingPod as ISavingPod } from './interfaces/create-pod-response.interface';
+import { UpdateSavingPodDto } from './dto/update-pod.dto';
 
 @Controller('saving-pods')
 export class SavingPodsController {
@@ -36,7 +37,19 @@ export class SavingPodsController {
         return await this.service.getMemberPods(req);
     }
 
+    @Put(':podId')
+    @JwtAuth()
+    @UseInterceptors(SubscriptionInterceptor)
+    async updatePod(
+        @Request() req,
+        @Param('podId') podId: string,
+        @Body() body: UpdateSavingPodDto
+    ): Promise<GenericResponse> {
+        return await this.service.updatePod(req, podId, body);
+    }
+
     @Post('join/:token')
+    @JwtAuth()
     async acceptInvitation(@Param('token') token: string): Promise<GenericResponse> {
         return await this.service.joinSavingPod(token);
     }

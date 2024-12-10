@@ -176,7 +176,7 @@ export class SavingPodsService {
      * 
      * @returns 
      */
-    async updatePod(request: JwtAndSubscription, podId: string, dto: UpdateSavingPodDto): Promise<{ success: boolean }> {
+    async updatePod(request: JwtAndSubscription, podId: string, dto: UpdateSavingPodDto): Promise<GenericResponse> {
         const savingPod = await this.getPodInstance(podId);
         if (!savingPod) {
             throw new NotFoundException();
@@ -204,7 +204,7 @@ export class SavingPodsService {
             })
         }
 
-        const updateResponse = await this.savingPodModel.findOneAndUpdate({ _id: podId }, updatedDto);
+        await this.savingPodModel.findOneAndUpdate({ _id: podId }, updatedDto);
         await this.sendNotificationToPodMembers(podId);
 
         return {
