@@ -1,3 +1,4 @@
+import { ForbiddenException } from '@nestjs/common';
 import { BadRequestException } from '@nestjs/common';
 import { Injectable } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
@@ -43,7 +44,7 @@ export class StripeService {
         const { customerId, accountId } = stripeInfoInstance;
 
         let defaultPaymentMethod: string;
-        const customer = await this.getCustomer(customerId) as Stripe.Customer;
+        const customer: Stripe.Customer = await this.getCustomer(customerId);
         if (customer && customer.invoice_settings && customer.invoice_settings.default_payment_method) {
             defaultPaymentMethod = customer.invoice_settings.default_payment_method as string;
         }
@@ -275,9 +276,16 @@ export class StripeService {
         });
     }
 
-    async getCustomer(customerId: string): Promise<Stripe.Response<Stripe.Customer | Stripe.DeletedCustomer>> {
-        return await this.stripe.customers.retrieve(customerId);
+    async getCustomer(customerId: string): Promise<Stripe.Customer> {
+        const customer = await this.stripe.customers.retrieve(customerId);
+
+        if (customer.deleted) {
+            throw new ForbiddenException();
+        }
+
+        return customer as Stripe.Customer;
     }
+
     async getAccount(accountId: string): Promise<Stripe.Account> {
         return await this.stripe.accounts.retrieve(accountId);
     }
