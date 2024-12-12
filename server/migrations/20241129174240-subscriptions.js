@@ -6,7 +6,8 @@ module.exports = {
     const records = [
       { 
         name: 'Free', 
-        price: '0.00', 
+        price: '0.00',
+        fee: 0, 
         currency: 'gbp', 
         features: [
           {
@@ -45,6 +46,7 @@ module.exports = {
       { 
         name: 'Basic', 
         price: '4.99', 
+        fee: 4.99, 
         currency: 'gbp', 
         features: [
           {
@@ -83,6 +85,7 @@ module.exports = {
       { 
         name: 'Pro', 
         price: '9.99', 
+        fee: 9.99,
         currency: 'gbp', 
         features: [
           {

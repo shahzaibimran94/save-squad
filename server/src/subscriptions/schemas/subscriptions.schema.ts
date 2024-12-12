@@ -14,6 +14,9 @@ export class Subscription {
   price: string;
 
   @Prop({ required: true })
+  fee: number;
+
+  @Prop({ required: true })
   currency: string;
 
   @Prop({ required: true })
