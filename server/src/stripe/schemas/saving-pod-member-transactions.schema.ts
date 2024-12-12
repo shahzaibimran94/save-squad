@@ -6,6 +6,12 @@ import { SavingPod } from 'src/saving-pods/schemas/saving-pods.schema';
 
 export type SavingPodMemberTransactionDocument = HydratedDocument<SavingPodMemberTransaction>;
 
+export enum PaymentStatus {
+  PENDING = 'pending',
+  PAID = 'paid',
+  FAILED = 'failed',
+}
+
 @Schema({ timestamps: true })
 export class SavingPodMemberTransaction {
   @Prop({ type: mongoose.Schema.Types.ObjectId, ref: 'User' })
@@ -22,6 +28,12 @@ export class SavingPodMemberTransaction {
 
   @Prop({ default: Date.now() })
   paymentDate: Date;
+
+  @Prop({ default: PaymentStatus.PENDING, enum: Object.values(PaymentStatus) })
+  status: string;
+
+  @Prop()
+  paymentReponse: string;
 }
 
 export const SavingPodMemberTransactionSchema = SchemaFactory.createForClass(SavingPodMemberTransaction);
