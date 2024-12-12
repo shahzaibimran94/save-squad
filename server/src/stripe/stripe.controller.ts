@@ -1,6 +1,6 @@
 import { Body, Post, Request } from '@nestjs/common';
+import { Get } from '@nestjs/common';
 import { Controller } from '@nestjs/common';
-import { JwtValidateResponse } from 'src/auth/interfaces/jwt-validate-response.interface';
 import { JwtAuth } from 'src/auth/jwt-auth.decorator';
 import { AddCardDto } from './dto/add-card.dto';
 import { VerificationSessionResponse } from './interfaces/verification-session.interface';
@@ -12,6 +12,12 @@ export class StripeController {
     constructor(
         private readonly service: StripeService
     ) {}
+
+    @Get('info')
+    @JwtAuth()
+    async getPaymentInfo(@Request() req) {
+        return await this.service.getPaymentInfo(req);
+    }
 
     @Post('add-card')
     @JwtAuth()

@@ -7,6 +7,7 @@ import { JwtValidateResponse } from 'src/auth/interfaces/jwt-validate-response.i
 import { UserDocument } from 'src/auth/schemas/user.schema';
 import { SharedService } from 'src/shared/shared.service';
 import Stripe from 'stripe';
+import { BankInfo, CardInfo, PaymentMethodsInfo } from './interfaces/payment-methods-info.interface';
 import { VerificationSessionResponse } from './interfaces/verification-session.interface';
 import { StripeInfo, StripeInfoDocument } from './schemas/stripe-info.schema';
 
@@ -31,6 +32,78 @@ export class StripeService {
 
     async getStripeInfo(userId: string): Promise<StripeInfoDocument> {
         return await this.stripeInfoModel.findOne({ user: userId });
+    }
+
+    async getPaymentInfo(user: JwtValidateResponse): Promise<PaymentMethodsInfo> {
+        const stripeInfoInstance: StripeInfo = await this.getStripeInfo(user.id);
+        if (!stripeInfoInstance) {
+            throw new BadRequestException();
+        }
+
+        const { customerId, accountId } = stripeInfoInstance;
+
+        let defaultPaymentMethod: string;
+        const customer = await this.getCustomer(customerId) as Stripe.Customer;
+        if (customer && customer.invoice_settings && customer.invoice_settings.default_payment_method) {
+            defaultPaymentMethod = customer.invoice_settings.default_payment_method as string;
+        }
+
+        const cards = await this.getCustomerPaymentMethods(customerId);
+        const customerCards: CardInfo[] = this.getCardDetails(cards, defaultPaymentMethod);
+
+        const banks = await this.getCustomerBank(accountId);
+        const customerBanks: BankInfo[] = this.getBankDetails(banks);
+
+        return { 
+            cards: customerCards, 
+            banks: customerBanks 
+        };
+    }
+
+    getCardDetails(cards: Stripe.ApiList<Stripe.PaymentMethod>, defaultPaymentMethod?: string): CardInfo[] {
+        const customerCards: CardInfo[] = [];
+
+        for (const card of cards.data) {
+            if (card.type === 'card') {
+                const cardData = card.card;
+                const { brand, exp_month, exp_year, funding, last4, three_d_secure_usage: { supported } } = cardData;
+
+                const cardInfo = {
+                    id: card.id,
+                    brand,
+                    exp_month,
+                    exp_year,
+                    funding,
+                    last4,
+                    three_d_secure_supported: supported,
+                    default: defaultPaymentMethod && typeof defaultPaymentMethod === 'string' && card.id === defaultPaymentMethod
+                } as CardInfo;
+
+                customerCards.push(cardInfo);
+            }
+        }
+
+        return customerCards;
+    }
+
+    getBankDetails(banks: Stripe.ApiList<Stripe.ExternalAccount>): BankInfo[] {
+        const customerBanks: BankInfo[] = [];
+
+        for (const bank of banks.data) {
+            if (bank.object === 'bank_account') {
+                const { id, last4, routing_number, account_holder_name, default_for_currency } = bank;
+                
+                customerBanks.push({
+                    id,
+                    last4,
+                    sort_code: routing_number,
+                    account_holder_name,
+                    default: default_for_currency
+                });
+            }
+        }
+
+        return customerBanks;
     }
 
     async createAccount(user: UserDocument, ip: string): Promise<boolean> {
@@ -193,9 +266,18 @@ export class StripeService {
     }
 
     async getCustomerPaymentMethods(customerId: string): Promise<Stripe.ApiList<Stripe.PaymentMethod>> {
-        return await this.stripe.customers.listPaymentMethods(customerId);
+        return await this.stripe.customers.listPaymentMethods(customerId, { limit: 3 });
     }
 
+    async getCustomerBank(accountId: string): Promise<Stripe.ApiList<Stripe.ExternalAccount>> {
+        return await this.stripe.accounts.listExternalAccounts(accountId, {
+            object: 'bank_account'
+        });
+    }
+
+    async getCustomer(customerId: string): Promise<Stripe.Response<Stripe.Customer | Stripe.DeletedCustomer>> {
+        return await this.stripe.customers.retrieve(customerId);
+    }
     async getAccount(accountId: string): Promise<Stripe.Account> {
         return await this.stripe.accounts.retrieve(accountId);
     }
