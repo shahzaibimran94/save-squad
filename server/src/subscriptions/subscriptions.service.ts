@@ -42,9 +42,24 @@ export class SubscriptionsService {
         return await this.getUserReadableSubscription((userSubscription.subscription as unknown as mongoose.Schema.Types.ObjectId));
     }
 
+    /**
+     * 
+     * User Subscribed according to registered date will be returned
+     * If today is 15th than user subscribed on 15th will be returned
+     * 
+     * @returns 
+     */
     async getAllSubscribedUsers(): Promise<UserSubscriptionFees[]> {
         return await this.userSubscriptionModel
-        .find({ active: true })
+        .find({ 
+            active: true,
+            $expr: {
+                $eq: [
+                    { $dayOfMonth: "$createdAt" },
+                    { $dayOfMonth: new Date() }
+                ]
+            } 
+        })
         .populate({
             path: "subscription",
             select: "fee"

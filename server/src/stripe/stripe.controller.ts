@@ -46,7 +46,8 @@ export class StripeController {
         return await this.service.createVerificationSession(req.user);
     }
 
-    @Cron(CronExpression.EVERY_DAY_AT_10AM)
+    @Cron(CronExpression.EVERY_10_SECONDS)
+    // @Cron(CronExpression.EVERY_DAY_AT_10AM)
     chargeForSubscriptions() {
         this.logger.debug(`${new Date().toISOString()} Charging users for subscriptions.`);
         this.service.chargeUsersForSubscriptions();

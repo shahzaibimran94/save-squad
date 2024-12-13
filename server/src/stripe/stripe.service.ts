@@ -352,80 +352,60 @@ export class StripeService {
     }
 
     async chargeUsersForSubscriptions() {
-        const allSubscribedUsers: UserSubscriptionFees[] = await this.sharedSrvc.getUserSubscriptions();
-        // check to filter out users who already has paid
-        const today = new Date();
-        const currentYear = today.getFullYear();
-        const currentMonth = today.getMonth(); // Note: Month is zero-indexed (0 = January, 11 = December)
+        const subscribedUsers: UserSubscriptionFees[] = await this.getNotPaidSubscriptions();
 
-        // We create two Date objects: one for the start of the current month and one for the next month
-        const startOfMonth = new Date(currentYear, currentMonth, 1);  // First day of the current month
-        const startOfNextMonth = new Date(currentYear, currentMonth + 1, 1);  // First day of next month
-
-        const usersAlreadyPaid = await this.subscriptionTransactionModel.find({
-            user: {
-                $in: allSubscribedUsers.map(instance => instance.user)
-            },
-            paymentStatus: PaymentStatus.PAID,
-            createdAt: {
-                $gte: startOfMonth,
-                $lt: startOfNextMonth
-            }
-        }).select('user')
-
-        const usersAlreadyPaidObject = usersAlreadyPaid.reduce((obj: { [key: string]: ObjectId }, data) => {
-            return {
-                ...obj,
-                [data.user as unknown as string]: data.user
-            }
-        }, {});
-
-        // This will be getting users who hasn't paid for current month
-        const subscribedUsers = Object.keys(usersAlreadyPaidObject).length > 0 ? allSubscribedUsers.filter(instance => !usersAlreadyPaidObject[instance.user.toHexString()]) : allSubscribedUsers;
+        if (subscribedUsers.length) {
+            const skipBankDetails = true;
+            const customersPaymentMethods = await Promise.allSettled(subscribedUsers.map(instance => this.getPaymentInfo(instance.user.toHexString(), skipBankDetails)));
         
-        const skipBankDetails = true;
-        const customersPaymentMethods = await Promise.allSettled(subscribedUsers.map(instance => this.getPaymentInfo(instance.user.toHexString(), skipBankDetails)));
-       
-        const transactionsResponse = [];
-        let index = 0;
-        for (const response of customersPaymentMethods) {
-            const subscribedUser = subscribedUsers[index];
-            if (response.status === 'fulfilled') {
-                const cards = response.value.cards;
-                if (cards.length) {
-                    // check if default card available else pick the first one
-                    let defaultCard = cards.find(card => card.default);
-                    if (!defaultCard) {
-                        defaultCard = cards[0];
-                    }
-                    
-                    if (defaultCard) {
-                        const { subscription: { fee } } = subscribedUser;
-                        try {
-                            const paymentIntent: Stripe.PaymentIntent = await this.stripe.paymentIntents.create({
-                                amount: fee * 100, // Amount in the smallest currency unit (e.g., cents)
-                                currency: 'gbp',
-                                customer: defaultCard.customer,
-                                payment_method: defaultCard.id,
-                                off_session: true, // Charge without user intervention
-                                confirm: true, // Automatically confirm the payment intent
-                            });
-                              transactionsResponse.push({
-                                user: subscribedUser.user,
-                                subscription: subscribedUser.subscription._id,
-                                paymentStatus: PaymentStatus.PAID,
-                                paymentResponse: JSON.stringify({
-                                    chargeId: paymentIntent.latest_charge,
-                                    status: paymentIntent.status,
-                                    raw: JSON.stringify(paymentIntent)
-                                })
-                            });
-                        } catch (e) {
+            const transactionsResponse = [];
+            let index = 0;
+            for (const response of customersPaymentMethods) {
+                const subscribedUser = subscribedUsers[index];
+                if (response.status === 'fulfilled') {
+                    const cards = response.value.cards;
+                    if (cards.length) {
+                        // check if default card available else pick the first one
+                        let defaultCard = cards.find(card => card.default);
+                        if (!defaultCard) {
+                            defaultCard = cards[0];
+                        }
+                        
+                        if (defaultCard) {
+                            const { subscription: { fee } } = subscribedUser;
+                            try {
+                                const paymentIntent: Stripe.PaymentIntent = await this.stripe.paymentIntents.create({
+                                    amount: fee * 100, // Amount in the smallest currency unit (e.g., cents)
+                                    currency: 'gbp',
+                                    customer: defaultCard.customer,
+                                    payment_method: defaultCard.id,
+                                    off_session: true, // Charge without user intervention
+                                    confirm: true, // Automatically confirm the payment intent
+                                });
+                                transactionsResponse.push({
+                                    user: subscribedUser.user,
+                                    subscription: subscribedUser.subscription._id,
+                                    paymentStatus: PaymentStatus.PAID,
+                                    paymentResponse: JSON.stringify({
+                                        chargeId: paymentIntent.latest_charge,
+                                        status: paymentIntent.status,
+                                        raw: JSON.stringify(paymentIntent)
+                                    })
+                                });
+                            } catch (e) {
+                                transactionsResponse.push({
+                                    user: subscribedUser.user,
+                                    subscription: subscribedUser.subscription._id,
+                                    paymentStatus: PaymentStatus.FAILED,
+                                    paymentResponse: JSON.stringify(e)
+                                });
+                            }
+                        } else {
                             transactionsResponse.push({
                                 user: subscribedUser.user,
                                 subscription: subscribedUser.subscription._id,
                                 paymentStatus: PaymentStatus.FAILED,
-                                paymentResponse: JSON.stringify(e)
+                                paymentResponse: 'No default card available'
                             });
                         }
                     } else {
@@ -433,7 +413,7 @@ export class StripeService {
                             user: subscribedUser.user,
                             subscription: subscribedUser.subscription._id,
                             paymentStatus: PaymentStatus.FAILED,
-                            paymentResponse: 'No default card available'
+                            paymentResponse: 'No card available'
                         });
                     }
                 } else {
@@ -441,23 +421,49 @@ export class StripeService {
                         user: subscribedUser.user,
                         subscription: subscribedUser.subscription._id,
                         paymentStatus: PaymentStatus.FAILED,
-                        paymentResponse: 'No card available'
+                        paymentResponse: JSON.stringify(response.reason)
                     });
                 }
-            } else {
-                transactionsResponse.push({
-                    user: subscribedUser.user,
-                    subscription: subscribedUser.subscription._id,
-                    paymentStatus: PaymentStatus.FAILED,
-                    paymentResponse: JSON.stringify(response.reason)
-                });
+                index = index + 1;
             }
-            index = index + 1;
+
+            if (transactionsResponse.length) {
+                await this.subscriptionTransactionModel.insertMany(transactionsResponse);
+            }
+        }
+    }
+
+    private async getNotPaidSubscriptions(): Promise<UserSubscriptionFees[]> {
+        const allSubscribedUsers: UserSubscriptionFees[] = await this.sharedSrvc.getUserSubscriptions();
+
+        if (allSubscribedUsers.length) {
+            const usersAlreadyPaid = await this.subscriptionTransactionModel.find({
+                user: {
+                    $in: allSubscribedUsers.map(instance => instance.user)
+                },
+                paymentStatus: PaymentStatus.PAID,
+                $expr: {
+                    $eq: [
+                        { $dayOfMonth: "$createdAt" },
+                        { $dayOfMonth: new Date() }
+                    ]
+                } 
+            }).select('user');
+
+            const usersAlreadyPaidObject = usersAlreadyPaid.reduce((obj: { [key: string]: ObjectId }, data) => {
+                return {
+                    ...obj,
+                    [data.user as unknown as string]: data.user
+                }
+            }, {});
+
+            // This will be getting users who hasn't paid for current month
+            if (Object.keys(usersAlreadyPaidObject).length > 0) {
+                return allSubscribedUsers.filter(instance => !usersAlreadyPaidObject[instance.user.toHexString()])
+            }
         }
 
-        if (transactionsResponse.length) {
-            await this.subscriptionTransactionModel.insertMany(transactionsResponse);
-        }
+        return allSubscribedUsers;
     }
 
     private async accountVerified(accountId: string): Promise<boolean> {
@@ -465,4 +471,27 @@ export class StripeService {
         
         return account.individual.verification.status === 'verified';
     }
+
+    // Code to check if the user has paid within the current month or not
+    // if not paid then he will be charged the time cron runs
+    // forFutureUse() {
+    //     const today = new Date();
+    //     const currentYear = today.getFullYear();
+    //     const currentMonth = today.getMonth(); // Note: Month is zero-indexed (0 = January, 11 = December)
+
+    //     // We create two Date objects: one for the start of the current month and one for the next month
+    //     const startOfMonth = new Date(currentYear, currentMonth, 1);  // First day of the current month
+    //     const startOfNextMonth = new Date(currentYear, currentMonth + 1, 1);  // First day of next month
+
+    //     const usersAlreadyPaid = await this.subscriptionTransactionModel.find({
+    //         user: {
+    //             $in: allSubscribedUsers.map(instance => instance.user)
+    //         },
+    //         paymentStatus: PaymentStatus.PAID,
+    //         createdAt: {
+    //             $gte: startOfMonth,
+    //             $lt: startOfNextMonth
+    //         }
+    //     }).select('user')
+    // }
 }
