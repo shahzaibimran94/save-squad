@@ -1,5 +1,7 @@
 import { Injectable } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
+import { UserSubscriptionFees } from 'src/subscriptions/interfaces/user-subscription.interface';
+import { SubscriptionsService } from 'src/subscriptions/subscriptions.service';
 import * as Twilio from 'twilio';
 
 @Injectable()
@@ -8,6 +10,7 @@ export class SharedService {
 
     constructor(
         private readonly configSrvc: ConfigService,
+        private readonly subscriptionSrvc: SubscriptionsService
     ) {
         const accountSid = this.configSrvc.get<string>('TWILIO_SID');
         const authToken = this.configSrvc.get<string>('TWILIO_TOKEN');
@@ -25,5 +28,9 @@ export class SharedService {
         } catch (error) {
         //   throw new InternalServerErrorException('Failed to send SMS');
         }
+    }
+
+    async getUserSubscriptions(): Promise<UserSubscriptionFees[]> {
+      return await this.subscriptionSrvc.getAllSubscribedUsers();
     }
 }

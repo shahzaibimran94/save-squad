@@ -15,7 +15,11 @@ export class SubscriptionTransaction {
   @Prop({ type: mongoose.Schema.Types.ObjectId, ref: 'Subscription' })
   subscription: Subscription;
 
-  @Prop({  default: PaymentStatus.PENDING, enum: Object.keys(PaymentStatus) })
+  @Prop({ 
+    type: String, 
+    enum: Object.values(PaymentStatus),
+    default: PaymentStatus.PENDING,  
+  })
   paymentStatus: string;
 
   @Prop({ type: mongoose.Schema.Types.Mixed })

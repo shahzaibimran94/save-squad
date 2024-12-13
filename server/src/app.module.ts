@@ -15,9 +15,11 @@ import { Log, LogSchema } from './logger/schemas/logger.schema';
 import { ThrottlerModule } from '@nestjs/throttler';
 import { SubscriptionInterceptor } from './subscriptions/subscription.interceptor';
 import { APP_INTERCEPTOR } from '@nestjs/core';
+import { ScheduleModule } from '@nestjs/schedule';
 
 @Module({
   imports: [
+    ScheduleModule.forRoot(),
     ThrottlerModule.forRoot({
       throttlers: [
         {

@@ -7,13 +7,13 @@ export type StripeInfoDocument = HydratedDocument<StripeInfo>;
 
 @Schema({ timestamps: true })
 export class StripeInfo {
-  @Prop({ type: mongoose.Schema.Types.ObjectId, ref: 'User' })
+  @Prop({ type: mongoose.Schema.Types.ObjectId, ref: 'User', required: true })
   user: User;
 
-  @Prop()
+  @Prop({ required: true })
   customerId: string;
 
-  @Prop()
+  @Prop({ required: true })
   accountId: string;
 }
 

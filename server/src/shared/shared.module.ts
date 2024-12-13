@@ -1,8 +1,9 @@
 import { Module } from '@nestjs/common';
+import { SubscriptionsModule } from 'src/subscriptions/subscriptions.module';
 import { SharedService } from './shared.service';
 
 @Module({
-    imports: [],
+    imports: [SubscriptionsModule],
     providers: [SharedService], 
     exports: [SharedService],  
 })

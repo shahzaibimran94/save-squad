@@ -6,7 +6,7 @@ import { JwtValidateResponse } from 'src/auth/interfaces/jwt-validate-response.i
 import { UserSubscription, UserSubscriptionDocument } from './schemas/user-subscriptions.schema';
 import { Subscription } from './schemas/subscriptions.schema';
 import mongoose from 'mongoose';
-import { IUserSubscription } from './interfaces/user-subscription.interface';
+import { IUserSubscription, UserSubscriptionFees } from './interfaces/user-subscription.interface';
 import { ConflictException } from '@nestjs/common';
 
 @Injectable()
@@ -40,6 +40,16 @@ export class SubscriptionsService {
         }
 
         return await this.getUserReadableSubscription((userSubscription.subscription as unknown as mongoose.Schema.Types.ObjectId));
+    }
+
+    async getAllSubscribedUsers(): Promise<UserSubscriptionFees[]> {
+        return await this.userSubscriptionModel
+        .find({ active: true })
+        .populate({
+            path: "subscription",
+            select: "fee"
+        })
+        .select('user subscription -_id');
     }
 
     private async getUserReadableSubscription(subscriptionId: mongoose.Schema.Types.ObjectId): Promise<IUserSubscription> {

@@ -3,14 +3,17 @@ import { BadRequestException } from '@nestjs/common';
 import { Injectable } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { InjectModel } from '@nestjs/mongoose';
-import { Model } from 'mongoose';
+import { Model, ObjectId } from 'mongoose';
 import { JwtValidateResponse } from 'src/auth/interfaces/jwt-validate-response.interface';
 import { UserDocument } from 'src/auth/schemas/user.schema';
 import { SharedService } from 'src/shared/shared.service';
+import { UserSubscriptionFees } from 'src/subscriptions/interfaces/user-subscription.interface';
 import Stripe from 'stripe';
 import { BankInfo, CardInfo, PaymentMethodsInfo } from './interfaces/payment-methods-info.interface';
 import { VerificationSessionResponse } from './interfaces/verification-session.interface';
+import { PaymentStatus } from './schemas/saving-pod-member-transactions.schema';
 import { StripeInfo, StripeInfoDocument } from './schemas/stripe-info.schema';
+import { SubscriptionTransaction } from './schemas/user-subscription-transaction.schema';
 
 @Injectable()
 export class StripeService {
@@ -19,7 +22,10 @@ export class StripeService {
     constructor(
         @InjectModel(StripeInfo.name)
         private readonly stripeInfoModel: Model<StripeInfo>,
+        @InjectModel(SubscriptionTransaction.name)
+        private readonly subscriptionTransactionModel: Model<SubscriptionTransaction>,
         private readonly configSrvc: ConfigService,
+        private readonly sharedSrvc: SharedService
     ) {
         const stripeSecretKey = this.configSrvc.get<string>('STRIPE_SECRET_KEY');
         if (!stripeSecretKey) {
@@ -35,11 +41,13 @@ export class StripeService {
         return await this.stripeInfoModel.findOne({ user: userId });
     }
 
-    async getPaymentInfo(user: JwtValidateResponse): Promise<PaymentMethodsInfo> {
-        const stripeInfoInstance: StripeInfo = await this.getStripeInfo(user.id);
+    async getPaymentInfo(user: JwtValidateResponse | string, skipBank = false): Promise<PaymentMethodsInfo> {
+        const stripeInfoInstance: StripeInfo = await this.getStripeInfo(typeof user === 'string' ? user : user.id);
         if (!stripeInfoInstance) {
             throw new BadRequestException();
         }
+
+        const response = {} as PaymentMethodsInfo;
 
         const { customerId, accountId } = stripeInfoInstance;
 
@@ -51,14 +59,15 @@ export class StripeService {
 
         const cards = await this.getCustomerPaymentMethods(customerId);
         const customerCards: CardInfo[] = this.getCardDetails(cards, defaultPaymentMethod);
+        response['cards'] = customerCards;
 
-        const banks = await this.getCustomerBank(accountId);
-        const customerBanks: BankInfo[] = this.getBankDetails(banks);
+        if (!skipBank) {
+            const banks = await this.getCustomerBank(accountId);
+            const customerBanks: BankInfo[] = this.getBankDetails(banks);
+            response['banks'] = customerBanks;
+        }
 
-        return { 
-            cards: customerCards, 
-            banks: customerBanks 
-        };
+        return response;
     }
 
     getCardDetails(cards: Stripe.ApiList<Stripe.PaymentMethod>, defaultPaymentMethod?: string): CardInfo[] {
@@ -77,6 +86,7 @@ export class StripeService {
                     funding,
                     last4,
                     three_d_secure_supported: supported,
+                    customer: card.customer,
                     default: defaultPaymentMethod && typeof defaultPaymentMethod === 'string' && card.id === defaultPaymentMethod
                 } as CardInfo;
 
@@ -92,14 +102,15 @@ export class StripeService {
 
         for (const bank of banks.data) {
             if (bank.object === 'bank_account') {
-                const { id, last4, routing_number, account_holder_name, default_for_currency } = bank;
+                const { id, last4, routing_number, account_holder_name, default_for_currency, account } = bank;
                 
                 customerBanks.push({
                     id,
                     last4,
                     sort_code: routing_number,
                     account_holder_name,
-                    default: default_for_currency
+                    default: default_for_currency,
+                    account: account as string
                 });
             }
         }
@@ -338,6 +349,115 @@ export class StripeService {
         }
 
         return verified;
+    }
+
+    async chargeUsersForSubscriptions() {
+        const allSubscribedUsers: UserSubscriptionFees[] = await this.sharedSrvc.getUserSubscriptions();
+        // check to filter out users who already has paid
+        const today = new Date();
+        const currentYear = today.getFullYear();
+        const currentMonth = today.getMonth(); // Note: Month is zero-indexed (0 = January, 11 = December)
+
+        // We create two Date objects: one for the start of the current month and one for the next month
+        const startOfMonth = new Date(currentYear, currentMonth, 1);  // First day of the current month
+        const startOfNextMonth = new Date(currentYear, currentMonth + 1, 1);  // First day of next month
+
+        const usersAlreadyPaid = await this.subscriptionTransactionModel.find({
+            user: {
+                $in: allSubscribedUsers.map(instance => instance.user)
+            },
+            paymentStatus: PaymentStatus.PAID,
+            createdAt: {
+                $gte: startOfMonth,
+                $lt: startOfNextMonth
+            }
+        }).select('user')
+
+        const usersAlreadyPaidObject = usersAlreadyPaid.reduce((obj: { [key: string]: ObjectId }, data) => {
+            return {
+                ...obj,
+                [data.user as unknown as string]: data.user
+            }
+        }, {});
+
+        // This will be getting users who hasn't paid for current month
+        const subscribedUsers = Object.keys(usersAlreadyPaidObject).length > 0 ? allSubscribedUsers.filter(instance => !usersAlreadyPaidObject[instance.user.toHexString()]) : allSubscribedUsers;
+        
+        const skipBankDetails = true;
+        const customersPaymentMethods = await Promise.allSettled(subscribedUsers.map(instance => this.getPaymentInfo(instance.user.toHexString(), skipBankDetails)));
+       
+        const transactionsResponse = [];
+        let index = 0;
+        for (const response of customersPaymentMethods) {
+            const subscribedUser = subscribedUsers[index];
+            if (response.status === 'fulfilled') {
+                const cards = response.value.cards;
+                if (cards.length) {
+                    // check if default card available else pick the first one
+                    let defaultCard = cards.find(card => card.default);
+                    if (!defaultCard) {
+                        defaultCard = cards[0];
+                    }
+                    
+                    if (defaultCard) {
+                        const { subscription: { fee } } = subscribedUser;
+                        try {
+                            const paymentIntent: Stripe.PaymentIntent = await this.stripe.paymentIntents.create({
+                                amount: fee * 100, // Amount in the smallest currency unit (e.g., cents)
+                                currency: 'gbp',
+                                customer: defaultCard.customer,
+                                payment_method: defaultCard.id,
+                                off_session: true, // Charge without user intervention
+                                confirm: true, // Automatically confirm the payment intent
+                            });
+                              transactionsResponse.push({
+                                user: subscribedUser.user,
+                                subscription: subscribedUser.subscription._id,
+                                paymentStatus: PaymentStatus.PAID,
+                                paymentResponse: JSON.stringify({
+                                    chargeId: paymentIntent.latest_charge,
+                                    status: paymentIntent.status,
+                                    raw: JSON.stringify(paymentIntent)
+                                })
+                            });
+                        } catch (e) {
+                            transactionsResponse.push({
+                                user: subscribedUser.user,
+                                subscription: subscribedUser.subscription._id,
+                                paymentStatus: PaymentStatus.FAILED,
+                                paymentResponse: JSON.stringify(e)
+                            });
+                        }
+                    } else {
+                        transactionsResponse.push({
+                            user: subscribedUser.user,
+                            subscription: subscribedUser.subscription._id,
+                            paymentStatus: PaymentStatus.FAILED,
+                            paymentResponse: 'No default card available'
+                        });
+                    }
+                } else {
+                    transactionsResponse.push({
+                        user: subscribedUser.user,
+                        subscription: subscribedUser.subscription._id,
+                        paymentStatus: PaymentStatus.FAILED,
+                        paymentResponse: 'No card available'
+                    });
+                }
+            } else {
+                transactionsResponse.push({
+                    user: subscribedUser.user,
+                    subscription: subscribedUser.subscription._id,
+                    paymentStatus: PaymentStatus.FAILED,
+                    paymentResponse: JSON.stringify(response.reason)
+                });
+            }
+            index = index + 1;
+        }
+
+        if (transactionsResponse.length) {
+            await this.subscriptionTransactionModel.insertMany(transactionsResponse);
+        }
     }
 
     private async accountVerified(accountId: string): Promise<boolean> {
