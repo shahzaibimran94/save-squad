@@ -25,10 +25,14 @@ export class SubscriptionsService {
             throw new ConflictException();
         }
 
+        const today = new Date(); // Get the current date
+        const currentDay = today.getDate(); // Get the day of the month
+
         return await this.userSubscriptionModel.create({
             user: user.id,
             subscription: id,
-            activationDate: Date.now(),
+            // I have added this to handle leap year
+            activationDate: currentDay > 28 ? new Date(today.getFullYear(), today.getMonth() + 1, 1) : Date.now(),
             active: true
         });
     }
