@@ -10,7 +10,7 @@ export class SubscriptionsController {
     @Get('')
     @JwtAuth()
     async getUserSubscription(@Request() req) {
-        return await this.service.getAllSubscribedUsers();
+        return await this.service.getUserSubscription(req.user);
     }
 
     @Post('')

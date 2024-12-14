@@ -11,6 +11,7 @@ import { SharedService } from 'src/modules/shared/shared.service';
 import { IUserSubscription, UserSubscriptionFees } from 'src/modules/subscriptions/interfaces/user-subscription.interface';
 import { NO_CARD_AVAILABLE, NO_DEFAULT_CARD_AVAILABLE, PAYMENT_FAILED, PAYMENT_SUCCESS } from 'src/utils/constants/common';
 import { PaymentSubmitType } from 'src/utils/enums/payment-submit-type.enum';
+import { PaymentType } from 'src/utils/enums/payment-type.enum';
 import { getMonthDateRange } from 'src/utils/helpers/date.helper';
 import Stripe from 'stripe';
 import { ChargeCustomerDto } from './dto/charge-customer.dto';
@@ -459,6 +460,9 @@ export class StripeService {
             payment_method: payload.paymentMethod,
             off_session: true, // Charge without user intervention
             confirm: true, // Automatically confirm the payment intent
+            metadata: {
+                tag: PaymentType.SUBSCRIPTION
+            }
         });
     }
 
@@ -483,6 +487,9 @@ export class StripeService {
                         payment_method: defaultCard.id,
                         off_session: true, // Charge without user intervention
                         confirm: true, // Automatically confirm the payment intent
+                        metadata: {
+                            tag: PaymentType.SUBSCRIPTION
+                        }
                     });
 
                     return {
