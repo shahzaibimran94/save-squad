@@ -50,26 +50,48 @@ export class SubscriptionsService {
      * 
      * User Subscribed according to registered date will be returned
      * If today is 15th than user subscribed on 15th will be returned
+     * User with non free subscription will be picked
      * 
      * @returns 
      */
     async getAllSubscribedUsers(): Promise<UserSubscriptionFees[]> {
-        return await this.userSubscriptionModel
-        .find({ 
-            active: true,
-            $expr: {
-                $eq: [
-                    { $dayOfMonth: "$createdAt" },
-                    { $dayOfMonth: new Date() }
-                ]
-            } 
-        })
-        .populate({
-            path: "subscription",
-            select: "fee",
-            // match: { fee: { $gt: 0 } }
-        })
-        .select('user subscription -_id');
+        return await this.userSubscriptionModel.aggregate([
+            {
+                $match: {
+                    active: true,
+                    $expr: {
+                        $eq: [
+                            { $dayOfMonth: "$createdAt" },
+                            { $dayOfMonth: new Date() }
+                        ]
+                    }
+                }
+            },
+            {
+                $lookup: {
+                    from: "subscriptions", // Name of the referenced collection
+                    localField: "subscription", // The field in userSubscriptionModel
+                    foreignField: "_id", // The matching field in subscription collection
+                    as: "subscription"
+                }
+            },
+            {
+                $unwind: "$subscription" // Deconstruct subscription array to access fields
+            },
+            {
+                $match: {
+                    "subscription.fee": { $gt: 0 } // Filter only if fee > 0
+                }
+            },
+            {
+                $project: {
+                    user: 1,
+                    "subscription._id": 1,
+                    "subscription.fee": 1,
+                    _id: 0
+                }
+            }
+        ]);
     }
 
     private async getUserReadableSubscription(subscriptionId: mongoose.Schema.Types.ObjectId): Promise<IUserSubscription> {
