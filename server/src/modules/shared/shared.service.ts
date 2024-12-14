@@ -1,8 +1,9 @@
 import { Injectable } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
-import { UserSubscriptionFees } from 'src/modules/subscriptions/interfaces/user-subscription.interface';
+import { IUserSubscription, UserSubscriptionFees } from 'src/modules/subscriptions/interfaces/user-subscription.interface';
 import { SubscriptionsService } from 'src/modules/subscriptions/subscriptions.service';
 import * as Twilio from 'twilio';
+import { JwtValidateResponse } from '../auth/interfaces/jwt-validate-response.interface';
 
 @Injectable()
 export class SharedService {
@@ -32,5 +33,9 @@ export class SharedService {
 
     async getUserSubscriptions(): Promise<UserSubscriptionFees[]> {
       return await this.subscriptionSrvc.getAllSubscribedUsers();
+    }
+
+    async getUserSubscription(user: JwtValidateResponse): Promise<IUserSubscription> {
+      return await this.subscriptionSrvc.getUserSubscription(user);
     }
 }

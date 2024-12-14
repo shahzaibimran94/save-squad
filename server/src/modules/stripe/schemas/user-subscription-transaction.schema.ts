@@ -4,6 +4,7 @@ import mongoose, { HydratedDocument } from 'mongoose';
 import { User } from 'src/modules/auth/schemas/user.schema';
 import { PaymentStatus } from './saving-pod-member-transactions.schema';
 import { Subscription } from '../../subscriptions/schemas/subscriptions.schema';
+import { PaymentSubmitType } from 'src/utils/enums/payment-submit-type.enum';
 
 export type SubscriptionTransactionDocument = HydratedDocument<SubscriptionTransaction>;
 
@@ -27,8 +28,8 @@ export class SubscriptionTransaction {
 
   @Prop({ 
     type: String,
-    enum: ['auto', 'manual'],
-    default: 'auto' 
+    enum: Object.values(PaymentSubmitType),
+    default: PaymentSubmitType.AUTO
   })
   paymentSubmitted: string;
 }

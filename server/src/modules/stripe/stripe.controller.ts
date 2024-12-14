@@ -8,6 +8,8 @@ import { StripeService } from './stripe.service';
 import { Cron, CronExpression } from '@nestjs/schedule';
 import { ConfigService } from '@nestjs/config';
 import { Environment } from 'src/utils/enums/environment.enum';
+import { ManualPaymentDto } from './dto/manual-payment.dto';
+import { PaymentType } from 'src/utils/enums/payment-type.enum';
 
 @Controller('payment')
 export class StripeController {
@@ -54,9 +56,18 @@ export class StripeController {
 
     @Post('pay')
     @JwtAuth()
-    async payManually(@Request() req) {
-        // console.log(req)
-        return { success: true };
+    async payManually(@Request() req, @Body() body: ManualPaymentDto) {
+        if (body.type === PaymentType.SUBSCRIPTION) {
+            return await this.service.payManually(req.user);
+        } else if (body.type === PaymentType.SAVING_POD) {
+            return {
+                message: 'Not implemented'
+            };
+        }
+
+        return {
+            message: 'Not implemented'
+        };
     }
 
     @Cron(CronExpression.EVERY_DAY_AT_10AM)

@@ -1,8 +1,10 @@
 import { ObjectId } from 'mongodb';
 
 export interface IUserSubscription {
+    id: string;
     name: string;
     currency: string;
+    fee: number;
     options: SubscriptionOptions;
 }
 

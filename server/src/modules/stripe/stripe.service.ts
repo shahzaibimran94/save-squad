@@ -3,21 +3,25 @@ import { BadRequestException } from '@nestjs/common';
 import { Injectable } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { InjectModel } from '@nestjs/mongoose';
+import { Jwt } from 'jsonwebtoken';
 import { Model, ObjectId } from 'mongoose';
 import { JwtValidateResponse } from 'src/modules/auth/interfaces/jwt-validate-response.interface';
 import { UserDocument } from 'src/modules/auth/schemas/user.schema';
 import { SharedService } from 'src/modules/shared/shared.service';
-import { UserSubscriptionFees } from 'src/modules/subscriptions/interfaces/user-subscription.interface';
-import { NO_CARD_AVAILABLE, NO_DEFAULT_CARD_AVAILABLE } from 'src/utils/constants/common';
+import { IUserSubscription, UserSubscriptionFees } from 'src/modules/subscriptions/interfaces/user-subscription.interface';
+import { NO_CARD_AVAILABLE, NO_DEFAULT_CARD_AVAILABLE, PAYMENT_FAILED, PAYMENT_SUCCESS } from 'src/utils/constants/common';
+import { PaymentSubmitType } from 'src/utils/enums/payment-submit-type.enum';
+import { getMonthDateRange } from 'src/utils/helpers/date.helper';
 import Stripe from 'stripe';
 import { ChargeCustomerDto } from './dto/charge-customer.dto';
+import { ChargeCustomer } from './interfaces/charge-customer.interface';
 import { BankInfo, CardInfo, PaymentMethodsInfo } from './interfaces/payment-methods-info.interface';
 import { TransactionResponse } from './interfaces/transaction.interface';
 import { VerificationSessionResponse } from './interfaces/verification-session.interface';
 import { RetryTransaction } from './schemas/retry-transaction.schema';
 import { PaymentStatus } from './schemas/saving-pod-member-transactions.schema';
 import { StripeInfo, StripeInfoDocument } from './schemas/stripe-info.schema';
-import { SubscriptionTransaction } from './schemas/user-subscription-transaction.schema';
+import { SubscriptionTransaction, SubscriptionTransactionDocument } from './schemas/user-subscription-transaction.schema';
 
 @Injectable()
 export class StripeService {
@@ -458,17 +462,64 @@ export class StripeService {
         });
     }
 
-    async retryFailedSubscriptionsCharge() {
-        const now = new Date();
+    async chargeCustomerV2(userId: string, amount: number): Promise<ChargeCustomer> {
+        const skipBankDetails = true;
+        const userPaymentMethods = await this.getPaymentInfo(userId, skipBankDetails);
 
-        // Get the first and last day of the current month dynamically
-        const startOfMonth = new Date(now.getFullYear(), now.getMonth(), 1); // First day
-        const endOfMonth = new Date(now.getFullYear(), now.getMonth() + 1, 0); // Last day
+        const cards = userPaymentMethods.cards;
+        if (cards.length) {
+            // check if default card available else pick the first one
+            let defaultCard = cards.find(card => card.default);
+            if (!defaultCard) {
+                defaultCard = cards[0];
+            }
+            
+            if (defaultCard) {
+                try {
+                    const paymentIntent: Stripe.PaymentIntent = await this.stripe.paymentIntents.create({
+                        amount: amount * 100, // Amount in the smallest currency unit (e.g., pence)
+                        currency: 'gbp',
+                        customer: defaultCard.customer,
+                        payment_method: defaultCard.id,
+                        off_session: true, // Charge without user intervention
+                        confirm: true, // Automatically confirm the payment intent
+                    });
+
+                    return {
+                        error: false,
+                        response: JSON.stringify({
+                            chargeId: paymentIntent.latest_charge,
+                            status: paymentIntent.status,
+                            raw: JSON.stringify(paymentIntent)
+                        })
+                    };
+                } catch (e) {
+                    return {
+                        error: true,
+                        response: JSON.stringify(e)
+                    };
+                }
+            } else {
+                return {
+                    error: true,
+                    response: NO_DEFAULT_CARD_AVAILABLE
+                };
+            }
+        } else {
+            return {
+                error: true,
+                response: NO_CARD_AVAILABLE
+            };
+        }
+    }
+
+    async retryFailedSubscriptionsCharge() {
+        const { start, end } = getMonthDateRange();
         
         const retryInstances = await this.retryChargeSubscriptionModel.find({
             active: true,    
             retryCount: { $lt: 3 },
-            createdAt: { $gte: startOfMonth, $lte: endOfMonth },
+            createdAt: { $gte: start, $lte: end },
         })
         .populate({
             path: 'transactionId',
@@ -545,6 +596,44 @@ export class StripeService {
                 await instance.save();
             }
         }
+    }
+
+    // TODOS Have to make sure if we are getting after 3 days than entry should be made for current month not for the next month
+    async payManually(user: JwtValidateResponse) {
+        const subscription: IUserSubscription = await this.sharedSrvc.getUserSubscription(user);
+        
+        if (!subscription.fee) {
+            throw new ForbiddenException();
+        }
+        
+        const hasPaid = await this.hasUserPaid(user.id); // user has paid for current month
+        if (hasPaid) {
+            throw new ForbiddenException();
+        }
+
+        const { error, response }: ChargeCustomer = await this.chargeCustomerV2(user.id, subscription.fee);
+
+        await this.subscriptionTransactionModel.create({
+            user: user.id,
+            subscription: subscription.id,
+            paymentStatus: error ? PaymentStatus.FAILED : PaymentStatus.PAID,
+            paymentResponse: response,
+            paymentSubmitted: PaymentSubmitType.MANUAL
+        });
+        
+        return {
+            message: error ? PAYMENT_FAILED : PAYMENT_SUCCESS
+        };
+    }
+
+    async hasUserPaid(userId: string): Promise<boolean> {
+        const { start, end } = getMonthDateRange();
+
+        return !!(await this.subscriptionTransactionModel.findOne({
+            user: userId,
+            paymentStatus: PaymentStatus.PAID,
+            createdAt: { $gte: start, $lte: end },
+        }));
     }
 
     private async getNotPaidSubscriptions(): Promise<UserSubscriptionFees[]> {

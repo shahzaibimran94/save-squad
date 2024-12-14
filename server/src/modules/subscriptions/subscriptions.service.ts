@@ -66,7 +66,8 @@ export class SubscriptionsService {
         })
         .populate({
             path: "subscription",
-            select: "fee"
+            select: "fee",
+            // match: { fee: { $gt: 0 } }
         })
         .select('user subscription -_id');
     }
@@ -78,8 +79,10 @@ export class SubscriptionsService {
         }
 
         const toReturn = {
+            id: subscription._id.toHexString(),
             name: subscription.name,
             currency: subscription.currency,
+            fee: subscription.fee,
             options: {}
         };
 
