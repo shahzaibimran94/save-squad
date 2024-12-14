@@ -6,14 +6,20 @@ import { AddCardDto } from './dto/add-card.dto';
 import { VerificationSessionResponse } from './interfaces/verification-session.interface';
 import { StripeService } from './stripe.service';
 import { Cron, CronExpression } from '@nestjs/schedule';
+import { ConfigService } from '@nestjs/config';
+import { Environment } from 'src/utils/enums/environment.enum';
 
 @Controller('payment')
 export class StripeController {
+    private isDevelopment: boolean;
     private readonly logger = new Logger(StripeController.name);
 
     constructor(
-        private readonly service: StripeService
-    ) {}
+        private readonly service: StripeService,
+        private readonly configSrvs: ConfigService
+    ) {
+        this.isDevelopment = this.configSrvs.get<string>('NODE_ENV') === Environment.DEVELOPMENT;
+    }
 
     @Get('info')
     @JwtAuth()
@@ -46,9 +52,16 @@ export class StripeController {
         return await this.service.createVerificationSession(req.user);
     }
 
+    @Post('pay')
+    @JwtAuth()
+    async payManually(@Request() req) {
+        // console.log(req)
+        return { success: true };
+    }
+
     @Cron(CronExpression.EVERY_DAY_AT_10AM)
     chargeForSubscriptions() {
-        if (process.env.NODE_ENV !== 'development') {
+        if (!this.isDevelopment) {
             this.logger.debug(`${new Date().toISOString()} Charging users for subscriptions.`);
             this.service.chargeUsersForSubscriptions();
         }
@@ -56,7 +69,7 @@ export class StripeController {
 
     @Cron(CronExpression.EVERY_DAY_AT_NOON)
     retryChargeForSubscription() {
-        if (process.env.NODE_ENV !== 'development') {
+        if (!this.isDevelopment) {
             this.logger.debug(`${new Date().toISOString()} Retry charging users for subscriptions.`);
             this.service.retryFailedSubscriptionsCharge();
         }
