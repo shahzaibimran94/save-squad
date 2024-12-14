@@ -8,6 +8,7 @@ import { JwtValidateResponse } from 'src/modules/auth/interfaces/jwt-validate-re
 import { UserDocument } from 'src/modules/auth/schemas/user.schema';
 import { SharedService } from 'src/modules/shared/shared.service';
 import { UserSubscriptionFees } from 'src/modules/subscriptions/interfaces/user-subscription.interface';
+import { NO_CARD_AVAILABLE, NO_DEFAULT_CARD_AVAILABLE } from 'src/utils/constants/common';
 import Stripe from 'stripe';
 import { ChargeCustomerDto } from './dto/charge-customer.dto';
 import { BankInfo, CardInfo, PaymentMethodsInfo } from './interfaces/payment-methods-info.interface';
@@ -409,7 +410,7 @@ export class StripeService {
                                 user: subscribedUser.user.toHexString(),
                                 subscription: subscribedUser.subscription._id.toHexString(),
                                 paymentStatus: PaymentStatus.FAILED,
-                                paymentResponse: 'No default card available'
+                                paymentResponse: NO_DEFAULT_CARD_AVAILABLE
                             });
                         }
                     } else {
@@ -417,7 +418,7 @@ export class StripeService {
                             user: subscribedUser.user.toHexString(),
                             subscription: subscribedUser.subscription._id.toHexString(),
                             paymentStatus: PaymentStatus.FAILED,
-                            paymentResponse: 'No card available'
+                            paymentResponse: NO_CARD_AVAILABLE
                         });
                     }
                 } else {
@@ -520,7 +521,7 @@ export class StripeService {
                 } else {
                     const note = JSON.stringify({
                         status: PaymentStatus.FAILED,
-                        raw: 'No default Payment Method available'
+                        raw: NO_DEFAULT_CARD_AVAILABLE
                     });
                     if (!instance.notes) {
                         const notes = JSON.parse(instance.notes);
@@ -533,7 +534,7 @@ export class StripeService {
             } else {
                 const note = JSON.stringify({
                     status: PaymentStatus.FAILED,
-                    raw: 'No Payment Method available'
+                    raw: NO_CARD_AVAILABLE
                 });
                 if (!instance.notes) {
                     const notes = JSON.parse(instance.notes);
