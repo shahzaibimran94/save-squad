@@ -3,7 +3,6 @@ import { BadRequestException } from '@nestjs/common';
 import { Injectable } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { InjectModel } from '@nestjs/mongoose';
-import { Jwt } from 'jsonwebtoken';
 import { Model, ObjectId } from 'mongoose';
 import { JwtValidateResponse } from 'src/modules/auth/interfaces/jwt-validate-response.interface';
 import { UserDocument } from 'src/modules/auth/schemas/user.schema';
@@ -12,7 +11,7 @@ import { IUserSubscription, UserSubscriptionFees } from 'src/modules/subscriptio
 import { NO_CARD_AVAILABLE, NO_DEFAULT_CARD_AVAILABLE, PAYMENT_FAILED, PAYMENT_SUCCESS } from 'src/utils/constants/common';
 import { PaymentSubmitType } from 'src/utils/enums/payment-submit-type.enum';
 import { PaymentType } from 'src/utils/enums/payment-type.enum';
-import { getMonthDateRange } from 'src/utils/helpers/date.helper';
+import { getMonthDateRange, getTimestampMonthDateRange } from 'src/utils/helpers/date.helper';
 import Stripe from 'stripe';
 import { ChargeCustomerDto } from './dto/charge-customer.dto';
 import { ChargeCustomer } from './interfaces/charge-customer.interface';
@@ -22,7 +21,7 @@ import { VerificationSessionResponse } from './interfaces/verification-session.i
 import { RetryTransaction } from './schemas/retry-transaction.schema';
 import { PaymentStatus } from './schemas/saving-pod-member-transactions.schema';
 import { StripeInfo, StripeInfoDocument } from './schemas/stripe-info.schema';
-import { SubscriptionTransaction, SubscriptionTransactionDocument } from './schemas/user-subscription-transaction.schema';
+import { SubscriptionTransaction } from './schemas/user-subscription-transaction.schema';
 
 @Injectable()
 export class StripeService {
@@ -643,6 +642,49 @@ export class StripeService {
         }));
     }
 
+    /**
+     * 
+     * @param userId {string}
+     * 
+     * Search stripe charges for current month for provided customer using metadata 
+     * 
+     * @returns {Stripe.Charge}
+     */
+    async getCustomerSubscriptionCharge(userId: string): Promise<Stripe.Charge[]> {
+        const { customerId } = await this.getStripeInfo(userId);
+        const { start, end } = getTimestampMonthDateRange();
+
+        const charges: Stripe.ApiList<Stripe.Charge> = await this.stripe.charges.list({
+            customer: customerId,
+            created: { gte: start, lte: end },
+            limit: 100
+        });
+
+        return charges.data.filter((charge: Stripe.Charge) => charge.metadata.tag === PaymentType.SUBSCRIPTION);
+    }
+
+    /**
+     * 
+     * @param user {JwtValidateResponse}
+     * 
+     * A manual pay button will be enabled on client side 
+     * if from (subscription activation day + 3 days) payment has been received for subscription
+     * on 4th day after activation day, button will be enabled on client side
+     * 
+     * @returns {boolean}
+     */
+    async activateSubscriptionPayLink(user: JwtValidateResponse): Promise<boolean> {
+        const userSubscription = await this.sharedSrvc.getUserSubscription(user);
+        
+        const today = new Date();
+        if (userSubscription.activationDay + 3 < today.getDate()) {
+            const customerCurrMonthSubscriptionCharges = await this.getCustomerSubscriptionCharge(user.id);
+            return customerCurrMonthSubscriptionCharges.length === 0;
+        }
+
+        return false;
+    }
+
     private async getNotPaidSubscriptions(): Promise<UserSubscriptionFees[]> {
         const allSubscribedUsers: UserSubscriptionFees[] = await this.sharedSrvc.getUserSubscriptions();
 
@@ -680,5 +722,9 @@ export class StripeService {
         const account: Stripe.Account = await this.stripe.accounts.retrieve(accountId);
         
         return account.individual.verification.status === 'verified';
+    }
+
+    async testFn(user: JwtValidateResponse) {
+        return { message: 'testing' };
     }
 }

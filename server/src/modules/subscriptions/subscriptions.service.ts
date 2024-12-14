@@ -43,7 +43,7 @@ export class SubscriptionsService {
             throw new BadRequestException();
         }
 
-        return await this.getUserReadableSubscription((userSubscription.subscription as unknown as mongoose.Schema.Types.ObjectId));
+        return await this.getUserReadableSubscription((userSubscription.subscription as unknown as mongoose.Schema.Types.ObjectId), userSubscription.activationDate);
     }
 
     /**
@@ -94,7 +94,7 @@ export class SubscriptionsService {
         ]);
     }
 
-    private async getUserReadableSubscription(subscriptionId: mongoose.Schema.Types.ObjectId): Promise<IUserSubscription> {
+    private async getUserReadableSubscription(subscriptionId: mongoose.Schema.Types.ObjectId, activationDate: Date): Promise<IUserSubscription> {
         const subscription = await this.subscriptionModel.findOne({ _id: subscriptionId });
         if (!subscription) {
             throw new BadRequestException();
@@ -103,6 +103,7 @@ export class SubscriptionsService {
         const toReturn = {
             id: subscription._id.toHexString(),
             name: subscription.name,
+            activationDay: activationDate.getDate(),
             currency: subscription.currency,
             fee: subscription.fee,
             options: {}

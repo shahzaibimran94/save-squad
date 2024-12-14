@@ -3,6 +3,7 @@ import { ObjectId } from 'mongodb';
 export interface IUserSubscription {
     id: string;
     name: string;
+    activationDay: number;
     currency: string;
     fee: number;
     options: SubscriptionOptions;

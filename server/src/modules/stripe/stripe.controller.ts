@@ -70,6 +70,18 @@ export class StripeController {
         };
     }
 
+    @Post('subscription/can-activate-pay')
+    @JwtAuth()
+    async canPayForSubscriptionManually(@Request() req) {
+        return await this.service.activateSubscriptionPayLink(req.user);
+    }
+
+    @Get('test')
+    @JwtAuth()
+    async test(@Request() req) {
+        return await this.service.testFn(req.user);
+    }
+
     @Cron(CronExpression.EVERY_DAY_AT_10AM)
     chargeForSubscriptions() {
         if (!this.isDevelopment) {
