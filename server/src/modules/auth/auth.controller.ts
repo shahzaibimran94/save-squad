@@ -8,13 +8,17 @@ import { UserRequirements } from './dto/user-requirements.dto';
 import { UserVerifyDto } from './dto/user-verify.dto';
 import { JwtValidateResponse } from './interfaces/jwt-validate-response.interface';
 import { JwtAuth } from './jwt-auth.decorator';
+import { ConfigService } from '@nestjs/config';
 
 @Controller('auth')
 export class AuthController {
 
     constructor(
         private readonly authSrvc: AuthService,
-    ) {}
+        private readonly configSrvc: ConfigService
+    ) {
+        
+    }
 
     @Post('login')
     @HttpCode(200)
@@ -86,5 +90,4 @@ export class AuthController {
     async userRequirements(@Request() req): Promise<UserRequirements> {
         return await this.authSrvc.userRequirements((req.user as JwtValidateResponse).mobile);
     }
-
 }

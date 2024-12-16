@@ -1,37 +1,43 @@
-import { Injectable, InternalServerErrorException } from '@nestjs/common';
+import { Injectable } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
-import * as nodemailer from 'nodemailer';
+import * as sgMail from '@sendgrid/mail';
+
+export interface EmailResponse {
+  error: boolean;
+  message: string;
+}
 
 @Injectable()
 export class MailerService {
-  private transporter: nodemailer.Transporter;
 
   constructor(private readonly configService: ConfigService) {
-    this.transporter = nodemailer.createTransport({
-      host: this.configService.get<string>('EMAIL_HOST'),
-      port: this.configService.get<number>('EMAIL_PORT'),
-      secure: false, // true for 465, false for other ports
-      auth: {
-        user: this.configService.get<string>('EMAIL_USER'),
-        pass: this.configService.get<string>('EMAIL_PASSWORD'),
-      },
-    });
+    sgMail.setApiKey(this.configService.get<string>('SENDGRID_API_KEY'));
   }
 
-  async sendMail(to: string, subject: string, text: string, html?: string) {
-    try {
-      const mailOptions = {
-        from: this.configService.get<string>('EMAIL_FROM'),
-        to,
-        subject,
-        text,
-        html,
-      };
+  async sendMail(to: string, subject: string, text: string, html?: string): Promise<EmailResponse> {
+    const senderEmail = this.configService.get<string>('SENDGRID_SENDER_EMAIL');
 
-      const info = await this.transporter.sendMail(mailOptions);
-      return info;
+    const msg = {
+      to, // Recipient email
+      from: senderEmail, // Verified sender email (must match SendGrid settings)
+      subject, // Email subject
+      text, // Plain text content
+      html, // HTML content (optional)
+    };
+
+    try {
+        // Send email using SendGrid
+        await sgMail.send(msg);
+
+        return {
+          error: false,
+          message: `Email sent successfully to ${msg.to}`
+        };
     } catch (error) {
-      throw new InternalServerErrorException('Failed to send email');
+        return {
+          error: true,
+          message: error.message
+        };
     }
   }
 }
