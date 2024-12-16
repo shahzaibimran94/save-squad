@@ -43,12 +43,11 @@ export class SavingPodsService {
             amount: dto.amount
         };
 
-        if (dto.members && Array.isArray(dto.members) && dto.members.length) {
-            this.validatePodMembers(userId, payload, dto.members, subcriptionOptions);
-        }
+        const hasMembers = dto.members && Array.isArray(dto.members) && dto.members.length;
+        this.validatePodMembers(userId, payload, hasMembers ? dto.members : [], subcriptionOptions);
 
         const savingPodResponse = await this.savingPodModel.create(payload);
-        await this.sendNotificationToPodMembers(savingPodResponse._id.toHexString());
+        // await this.sendNotificationToPodMembers(savingPodResponse._id.toHexString());
 
         return await this.getPod(savingPodResponse._id.toHexString());
     }
@@ -192,20 +191,27 @@ export class SavingPodsService {
             this.validatePodMembersLength(dto.members, subcriptionOptions);
             const members = [request.user.id, ...dto.members];
             this.validatePodMembersDuplication(members, false);
+            dto.members = members;
         }
 
+        const memberInviteStatus: { [key: string]: string } = savingPod.members.reduce((obj: any, member: Member) => {
+            obj[member.user as any] = member.invitationStatus;
+            return obj;
+        }, {});
+        
         const updatedDto = {
             ...dto,
             members: dto.members.map((id: string) => {
+                const availabeInvitationStatus = memberInviteStatus[id];
                 return {
                     user: id,
-                    invitationStatus: id !== request.user.id ? InvitationStatus.PENDING : InvitationStatus.ACCEPTED,
+                    invitationStatus: id !== request.user.id ? availabeInvitationStatus ? availabeInvitationStatus : InvitationStatus.PENDING : InvitationStatus.ACCEPTED,
                 }
             })
         }
 
         await this.savingPodModel.findOneAndUpdate({ _id: podId }, updatedDto);
-        await this.sendNotificationToPodMembers(podId);
+        // await this.sendNotificationToPodMembers(podId);
 
         return {
             success: true
@@ -350,7 +356,7 @@ export class SavingPodsService {
     }
 
     private validatePodMembersDuplication(members: Member[] | string[], hasUserData = true): void {
-        const membersIds = !hasUserData ? (members as Member[]).map((member: Member) => member.user) : members;
+        const membersIds = hasUserData ? (members as Member[]).map((member: Member) => member.user) : members;
         
         if (new Set(membersIds as string[]).size !== membersIds.length) {
             throw new ForbiddenException('Duplicate members provided');

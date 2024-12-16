@@ -5,4 +5,5 @@ export class CreatePodDto {
     @IsNotEmpty()
     amount: string;
     members?: Member[];
+    startDate?: Date;
 }

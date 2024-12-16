@@ -4,5 +4,5 @@ export class UpdateSavingPodDto {
     amount?: number;
     startDate?: Date;
     members?: string[];
-    expired?: boolean;
+    // expired?: boolean;
 }
