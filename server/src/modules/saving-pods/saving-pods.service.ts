@@ -44,7 +44,25 @@ export class SavingPodsService {
         };
 
         const hasMembers = dto.members && Array.isArray(dto.members) && dto.members.length;
-        this.validatePodMembers(userId, payload, hasMembers ? dto.members : [], subcriptionOptions);
+        this.validatePodMembers(hasMembers ? dto.members : [], subcriptionOptions);
+
+        if (hasMembers) {
+            const payByChoice = subcriptionOptions['pod-pay-by-choice'];
+
+            payload['members'] = dto.members.map((member: Member) => {
+
+                const data = {
+                    user: member.user,
+                    invitationStatus: member.user !== request.user.id ? InvitationStatus.PENDING : InvitationStatus.ACCEPTED,
+                    order: 0
+                };
+
+                // when subscription has pay by choice feature than user can pass order
+                data.order = payByChoice ? member.order : 0;
+
+                return data;
+            });
+        }
 
         const savingPodResponse = await this.savingPodModel.create(payload);
         // await this.sendNotificationToPodMembers(savingPodResponse._id.toHexString());
@@ -182,17 +200,14 @@ export class SavingPodsService {
         }
 
         const subcriptionOptions = request.subscription.options;
+        const payByChoice = subcriptionOptions['pod-pay-by-choice'];
 
         if (dto.amount) {
             this.validatePodAmount(+dto.amount, subcriptionOptions);
         }
 
-        if (dto.members) {
-            this.validatePodMembersLength(dto.members, subcriptionOptions);
-            const members = [request.user.id, ...dto.members];
-            this.validatePodMembersDuplication(members, false);
-            dto.members = members;
-        }
+        const hasMembers = dto.members && Array.isArray(dto.members) && dto.members.length;
+        this.validatePodMembers(hasMembers ? dto.members : [], subcriptionOptions);
 
         const memberInviteStatus: { [key: string]: string } = savingPod.members.reduce((obj: any, member: Member) => {
             obj[member.user as any] = member.invitationStatus;
@@ -201,12 +216,21 @@ export class SavingPodsService {
         
         const updatedDto = {
             ...dto,
-            members: dto.members.map((id: string) => {
-                const availabeInvitationStatus = memberInviteStatus[id];
-                return {
-                    user: id,
-                    invitationStatus: id !== request.user.id ? availabeInvitationStatus ? availabeInvitationStatus : InvitationStatus.PENDING : InvitationStatus.ACCEPTED,
+            members: dto.members.map((member: Member) => {
+                const availabeInvitationStatus = memberInviteStatus[member.user as unknown as string];
+
+                const data = {
+                    user: member.user,
+                    invitationStatus: member.user !== request.user.id ? availabeInvitationStatus ? availabeInvitationStatus : InvitationStatus.PENDING : InvitationStatus.ACCEPTED,
+                    order: 0
+                };
+
+                // when subscription has pay by choice feature than user can pass order
+                if (payByChoice) {
+                    data.order = member.order;
                 }
+
+                return data;
             })
         }
 
@@ -332,31 +356,20 @@ export class SavingPodsService {
         }
     }
 
-    private validatePodMembers(userId: string, payload: CreatePodDto, members: Member[], subcriptionOptions: SubscriptionOptions): void {
+    private validatePodMembers(members: Member[], subcriptionOptions: SubscriptionOptions): void {
         this.validatePodMembersLength(members, subcriptionOptions);
-        
-        payload['members'] = [
-            { 
-                user: userId,
-                invitationStatus: InvitationStatus.ACCEPTED,
-            } as unknown as Member,
-            ...members
-        ];
 
-        this.validatePodMembersDuplication(payload.members);
+        this.validatePodMembersDuplication(members);
     }
 
-    private validatePodMembersLength(members: Member[] | string[], subcriptionOptions: SubscriptionOptions): void {
-        /**
-         * Plus 1 as we will be adding user as member who is creating a pod
-         */
-        if (members.length + 1 > subcriptionOptions['members']) {
+    private validatePodMembersLength(members: Member[], subcriptionOptions: SubscriptionOptions): void {
+        if (members.length > subcriptionOptions['members']) {
             throw new ForbiddenException('Maximum pod members limit reached');
         }
     }
 
-    private validatePodMembersDuplication(members: Member[] | string[], hasUserData = true): void {
-        const membersIds = hasUserData ? (members as Member[]).map((member: Member) => member.user) : members;
+    private validatePodMembersDuplication(members: Member[]): void {
+        const membersIds = members.map((member: Member) => member.user);
         
         if (new Set(membersIds as string[]).size !== membersIds.length) {
             throw new ForbiddenException('Duplicate members provided');

@@ -39,6 +39,12 @@ module.exports = {
             name: '500 Max Amount per pod',
             system: 'pod-max-amount',
             value: 500
+          },
+          {
+            _id: new ObjectId(),
+            name: 'Pay by Choice',
+            system: 'pod-pay-by-choice',
+            value: false
           }
         ],
         active: true
@@ -78,6 +84,12 @@ module.exports = {
             name: '3000 Max Amount per pod',
             system: 'pod-max-amount',
             value: 3000
+          },
+          {
+            _id: new ObjectId(),
+            name: 'Pay by Choice',
+            system: 'pod-pay-by-choice',
+            value: false
           }
         ],
         active: true
@@ -117,6 +129,12 @@ module.exports = {
             name: '10,000 Max Amount per pod',
             system: 'pod-max-amount',
             value: 10000
+          },
+          {
+            _id: new ObjectId(),
+            name: 'Pay by Choice',
+            system: 'pod-pay-by-choice',
+            value: true
           }
         ],
         active: true 
