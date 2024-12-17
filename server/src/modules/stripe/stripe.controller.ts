@@ -97,4 +97,7 @@ export class StripeController {
             this.service.retryFailedSubscriptionsCharge();
         }
     }
+
+    // A formula to charge a pod member
+    // Amount + 3.35% + 0.20 => Math.round(result)
 }
