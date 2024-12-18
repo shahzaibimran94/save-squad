@@ -254,7 +254,7 @@ export class StripeService {
         return true;
     }
 
-    async addBank(user: JwtValidateResponse, token: string): Promise<boolean> {
+    async addBank(user: JwtValidateResponse, payload: AddCardDto): Promise<boolean> {
         const stripeInfoInstance: StripeInfo = await this.getStripeInfo(user.id);
         if (!stripeInfoInstance) {
             throw new BadRequestException();
@@ -262,7 +262,7 @@ export class StripeService {
 
         const { accountId } = stripeInfoInstance;
 
-        await this.addExternalAccount(accountId, token);
+        await this.addExternalAccount(accountId, payload);
 
         return true;
     }
@@ -339,12 +339,18 @@ export class StripeService {
         }
     }
 
-    async addExternalAccount(accountId: string, token: string) {
+    async addExternalAccount(accountId: string, payload: AddCardDto) {
+        const data = {
+            external_account: payload.token,
+        };
+
+        if (payload.default) {
+            data['default_for_currency'] = payload.default;
+        }
+
         await this.stripe.accounts.createExternalAccount(
             accountId,
-            {
-                external_account: token,
-            },
+            data
         );
     }
 

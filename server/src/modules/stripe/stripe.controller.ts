@@ -42,7 +42,7 @@ export class StripeController {
     @Post('add-bank')
     @JwtAuth()
     async addBank(@Request() req, @Body() body: AddCardDto) {
-        await this.service.addBank(req.user, body.token);
+        await this.service.addBank(req.user, body);
 
         return {
             success: true
