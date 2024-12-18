@@ -32,7 +32,7 @@ export class StripeController {
     @Post('add-card')
     @JwtAuth()
     async addCard(@Request() req, @Body() body: AddCardDto) {
-        await this.service.addCardPaymentMethod(req.user, body.token);
+        await this.service.addCardPaymentMethod(req.user, body);
 
         return {
             success: true

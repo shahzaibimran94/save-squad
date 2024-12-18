@@ -13,6 +13,7 @@ import { PaymentSubmitType } from 'src/utils/enums/payment-submit-type.enum';
 import { PaymentType } from 'src/utils/enums/payment-type.enum';
 import { getMonthDateRange, getTimestampMonthDateRange } from 'src/utils/helpers/date.helper';
 import Stripe from 'stripe';
+import { AddCardDto } from './dto/add-card.dto';
 import { ChargeCustomerDto } from './dto/charge-customer.dto';
 import { ChargeCustomer } from './interfaces/charge-customer.interface';
 import { BankInfo, CardInfo, PaymentMethodsInfo } from './interfaces/payment-methods-info.interface';
@@ -240,7 +241,7 @@ export class StripeService {
         return hasCard && hasPayout;
     }
 
-    async addCardPaymentMethod(user: JwtValidateResponse, token: string): Promise<boolean> {
+    async addCardPaymentMethod(user: JwtValidateResponse, payload: AddCardDto): Promise<boolean> {
         const stripeInfoInstance: StripeInfo = await this.getStripeInfo(user.id);
         if (!stripeInfoInstance) {
             throw new BadRequestException();
@@ -248,7 +249,7 @@ export class StripeService {
 
         const { customerId } = stripeInfoInstance;
 
-        await this.attachPaymentMethodToCustomer(token, customerId);
+        await this.attachPaymentMethodToCustomer(payload, customerId);
 
         return true;
     }
@@ -322,12 +323,20 @@ export class StripeService {
         return paymentMethod.id;      
     }
 
-    async attachPaymentMethodToCustomer(token: string, customerId: string): Promise<void> {
-        const paymentMethodId = await this.createPaymentMethod(token);
+    async attachPaymentMethodToCustomer(payload: AddCardDto, customerId: string): Promise<void> {
+        const paymentMethodId = await this.createPaymentMethod(payload.token);
 
         await this.stripe.paymentMethods.attach(paymentMethodId, {
             customer: customerId,
         });
+
+        if (payload.default) {
+            await this.stripe.customers.update(customerId, {
+                invoice_settings: {
+                    default_payment_method: paymentMethodId
+                }
+            });
+        }
     }
 
     async addExternalAccount(accountId: string, token: string) {
