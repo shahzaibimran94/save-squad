@@ -129,7 +129,7 @@ export class SavingPodsService {
 
     async getUserActivePods(request: JwtAndSubscription): Promise<SavingPodDocument[]> {
         return await this.savingPodModel
-        .find({ user: request.user.id, active: true, expired: false })
+        .find({ user: request.user.id, expired: false })
         .populate([
             {
                 path: "user",
@@ -155,7 +155,7 @@ export class SavingPodsService {
      */
     async getMemberPods(request: JwtAndSubscription): Promise<MemberPod[]> {
         const savindPods = await this.savingPodModel.find({
-            active: true, expired: false,
+            expired: false,
             members: {
                 $elemMatch: {
                     user: request.user.id,
