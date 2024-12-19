@@ -1,6 +1,8 @@
 import { Module } from '@nestjs/common';
 import { MongooseModule } from '@nestjs/mongoose';
 import { SharedModule } from 'src/modules/shared/shared.module';
+import { SavingPodsModule } from '../saving-pods/saving-pods.module';
+import { SavingPodsService } from '../saving-pods/saving-pods.service';
 import { RetryTransaction, RetryTransactionSchema } from './schemas/retry-transaction.schema';
 import { SavingPodMemberTransaction, SavingPodMemberTransactionSchema } from './schemas/saving-pod-member-transactions.schema';
 import { StripeInfo, StripeInfoSchema } from './schemas/stripe-info.schema';
@@ -12,6 +14,7 @@ import { StripeService } from './stripe.service';
 @Module({
   imports: [
     SharedModule,
+    SavingPodsModule,
     MongooseModule.forFeature([
       { name: StripeInfo.name, schema: StripeInfoSchema },
       { name: Transaction.name, schema: TransactionSchema },

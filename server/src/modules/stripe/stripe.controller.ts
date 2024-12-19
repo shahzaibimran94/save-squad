@@ -10,6 +10,7 @@ import { ConfigService } from '@nestjs/config';
 import { Environment } from 'src/utils/enums/environment.enum';
 import { ManualPaymentDto } from './dto/manual-payment.dto';
 import { PaymentType } from 'src/utils/enums/payment-type.enum';
+import { SavingPodsService } from '../saving-pods/saving-pods.service';
 
 @Controller('payment')
 export class StripeController {
@@ -100,4 +101,10 @@ export class StripeController {
 
     // A formula to charge a pod member
     // Amount + 3.35% + 0.20 => Math.round(result)
+
+    @Cron(CronExpression.EVERY_10_SECONDS)
+    chargeForSavingPod() {
+        this.logger.debug(`${new Date().toISOString()} Charging members of pods.`);
+        this.service.handleSavingPodCharges();
+    }
 }

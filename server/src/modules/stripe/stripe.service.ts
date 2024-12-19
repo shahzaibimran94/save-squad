@@ -13,6 +13,8 @@ import { PaymentSubmitType } from 'src/utils/enums/payment-submit-type.enum';
 import { PaymentType } from 'src/utils/enums/payment-type.enum';
 import { getMonthDateRange, getTimestampMonthDateRange } from 'src/utils/helpers/date.helper';
 import Stripe from 'stripe';
+import { SavingPodToCharge } from '../saving-pods/interfaces/get-saving-pod.interface';
+import { SavingPodsService } from '../saving-pods/saving-pods.service';
 import { AddCardDto } from './dto/add-card.dto';
 import { ChargeCustomerDto } from './dto/charge-customer.dto';
 import { ChargeCustomer } from './interfaces/charge-customer.interface';
@@ -36,7 +38,8 @@ export class StripeService {
         @InjectModel(RetryTransaction.name)
         private readonly retryChargeSubscriptionModel: Model<RetryTransaction>,
         private readonly configSrvc: ConfigService,
-        private readonly sharedSrvc: SharedService
+        private readonly sharedSrvc: SharedService,
+        private readonly savingPodSrvc: SavingPodsService
     ) {
         const stripeSecretKey = this.configSrvc.get<string>('STRIPE_SECRET_KEY');
         if (!stripeSecretKey) {
@@ -698,6 +701,17 @@ export class StripeService {
         }
 
         return false;
+    }
+
+    async handleSavingPodCharges() {
+        const savingPods: SavingPodToCharge[] = await this.savingPodSrvc.getSavingPodsToCharge();
+
+        if (savingPods.length) {
+            console.log(JSON.stringify(savingPods, null, 2));
+            // saving pod member transactions for user id to find out non paid members
+            // have to group data like
+            // saving pod => member => pending
+        } 
     }
 
     private async getNotPaidSubscriptions(): Promise<UserSubscriptionFees[]> {

@@ -17,6 +17,7 @@ import { SavingPod, SavingPodSchema } from './schemas/saving-pods.schema';
     SharedModule
   ],
   controllers: [SavingPodsController],
-  providers: [SavingPodsService]
+  providers: [SavingPodsService],
+  exports: [SavingPodsService]
 })
 export class SavingPodsModule {}

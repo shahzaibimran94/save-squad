@@ -3,7 +3,9 @@ import { SubscriptionsModule } from 'src/modules/subscriptions/subscriptions.mod
 import { SharedService } from './shared.service';
 
 @Module({
-    imports: [SubscriptionsModule],
+    imports: [
+        SubscriptionsModule,
+    ],
     providers: [SharedService], 
     exports: [SharedService],  
 })

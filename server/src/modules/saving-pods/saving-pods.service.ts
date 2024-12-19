@@ -17,6 +17,7 @@ import { ConfigService } from '@nestjs/config';
 import { SharedService } from 'src/modules/shared/shared.service';
 import { InvitationUser } from './interfaces/invitation-user.interface';
 import { GenericResponse } from 'src/modules/shared/interfaces/common.interface';
+import { SavingPodToCharge } from './interfaces/get-saving-pod.interface';
 
 @Injectable()
 export class SavingPodsService {
@@ -335,6 +336,47 @@ export class SavingPodsService {
 
     generateSecureToken(): string {
         return crypto.randomBytes(32).toString("hex"); // Generates a 64-character hex token
+    }
+
+    async getSavingPodsToCharge(): Promise<SavingPodToCharge[]> {
+        const today = new Date();
+        const dayOfMonth = today.getDate();
+
+        return await this.savingPodModel.aggregate([
+            {
+              $match: {
+                active: true, 
+                expired: false,
+                $expr: {
+                  $eq: [
+                    { $dayOfMonth: "$startDate" },
+                    dayOfMonth
+                  ]
+                },
+                members: {
+                  $not: { 
+                    $elemMatch: { invitationStatus: { $ne: InvitationStatus.ACCEPTED } } 
+                  }
+                }
+              }
+            },
+            {
+              $project: {
+                amount: 1,
+                startDate: 1,
+                members: {
+                  $map: {
+                    input: "$members",
+                    as: "member",
+                    in: {
+                        order: "$$member.order",
+                        userId: "$$member.user",
+                    }
+                  }
+                }
+              }
+            }
+        ]);
     }
 
     private validatePodAmount(amount: number, subcriptionOptions: SubscriptionOptions) {
