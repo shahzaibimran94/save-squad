@@ -50,8 +50,8 @@ export class SavingPodsController {
 
     @Post('join/:token')
     @JwtAuth()
-    async acceptInvitation(@Param('token') token: string): Promise<GenericResponse> {
-        return await this.service.joinSavingPod(token);
+    async acceptInvitation(@Param('token') token: string, @Body('status') status: string): Promise<GenericResponse> {
+        return await this.service.joinSavingPod(token, status);
     }
 
 }

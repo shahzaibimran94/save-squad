@@ -294,7 +294,7 @@ export class SavingPodsService {
         await Promise.allSettled([...emailsToSend, ...messagesToSend]);
     }
 
-    async joinSavingPod(token: string): Promise<GenericResponse> {
+    async joinSavingPod(token: string, status: string): Promise<GenericResponse> {
         const invitation = await this.savingPodInviteModel.findOne({ 
             token, 
             isUsed: false,
@@ -313,16 +313,25 @@ export class SavingPodsService {
             success: true
         };
         try {
-            savingPod.members = [...savingPod.members.map(member => {
-                const memberId = member['_id'] as unknown as Types.ObjectId;
-                if (memberId.toHexString() === invitation.member) {
-                    return {
-                        ...member,
-                        invitationStatus: InvitationStatus.ACCEPTED
-                    };
-                }
-                return member;
-            })] as unknown as Member[];
+            if (status = InvitationStatus.ACCEPTED) {
+                savingPod.members = [...savingPod.members.map(member => {
+                    const memberId = member['_id'] as unknown as Types.ObjectId;
+                    if (memberId.toHexString() === invitation.member) {
+                        return {
+                            ...member,
+                            invitationStatus: InvitationStatus.ACCEPTED
+                        };
+                    }
+                    return member;
+                })] as unknown as Member[];
+            } else {
+                // Member will be deleted if hasn't accepted the invitation
+                savingPod.members = [...savingPod.members.filter(member => {
+                    const memberId = member['_id'] as unknown as Types.ObjectId;
+                    return memberId.toHexString() !== invitation.member;
+                })] as unknown as Member[];
+            }
+
             await savingPod.save();
     
             invitation.isUsed = true;

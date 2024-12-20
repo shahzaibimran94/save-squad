@@ -104,7 +104,9 @@ export class StripeController {
 
     @Cron(CronExpression.EVERY_10_SECONDS)
     chargeForSavingPod() {
-        this.logger.debug(`${new Date().toISOString()} Charging members of pods.`);
-        this.service.handleSavingPodCharges();
+        if (!this.isDevelopment) {
+            this.logger.debug(`${new Date().toISOString()} Charging members of pods.`);
+            this.service.handleSavingPodCharges();
+        }
     }
 }
