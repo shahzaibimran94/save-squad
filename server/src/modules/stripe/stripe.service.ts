@@ -22,7 +22,7 @@ import { BankInfo, CardInfo, PaymentMethodsInfo } from './interfaces/payment-met
 import { TransactionResponse } from './interfaces/transaction.interface';
 import { VerificationSessionResponse } from './interfaces/verification-session.interface';
 import { RetryTransaction } from './schemas/retry-transaction.schema';
-import { PaymentStatus } from './schemas/saving-pod-member-transactions.schema';
+import { PaymentStatus, SavingPodMemberTransaction } from './schemas/saving-pod-member-transactions.schema';
 import { StripeInfo, StripeInfoDocument } from './schemas/stripe-info.schema';
 import { SubscriptionTransaction } from './schemas/user-subscription-transaction.schema';
 
@@ -37,6 +37,8 @@ export class StripeService {
         private readonly subscriptionTransactionModel: Model<SubscriptionTransaction>,
         @InjectModel(RetryTransaction.name)
         private readonly retryChargeSubscriptionModel: Model<RetryTransaction>,
+        @InjectModel(SavingPodMemberTransaction.name)
+        private readonly podMemberTransactionModel: Model<SavingPodMemberTransaction>,
         private readonly configSrvc: ConfigService,
         private readonly sharedSrvc: SharedService,
         private readonly savingPodSrvc: SavingPodsService
@@ -471,7 +473,7 @@ export class StripeService {
 
     async chargeCustomer(payload: ChargeCustomerDto): Promise<Stripe.PaymentIntent> {
         return await this.stripe.paymentIntents.create({
-            amount: payload.fee * 100, // Amount in the smallest currency unit (e.g., pence)
+            amount: +(payload.fee * 100).toFixed(2), // Amount in the smallest currency unit (e.g., pence)
             currency: payload.currency,
             customer: payload.customerId,
             payment_method: payload.paymentMethod,
@@ -498,7 +500,7 @@ export class StripeService {
             if (defaultCard) {
                 try {
                     const paymentIntent: Stripe.PaymentIntent = await this.stripe.paymentIntents.create({
-                        amount: amount * 100, // Amount in the smallest currency unit (e.g., pence)
+                        amount: +(amount * 100).toFixed(2), // Amount in the smallest currency unit (e.g., pence)
                         currency: 'gbp',
                         customer: defaultCard.customer,
                         payment_method: defaultCard.id,
@@ -535,6 +537,34 @@ export class StripeService {
                 response: NO_CARD_AVAILABLE
             };
         }
+    }
+
+    async transfer(userId: string, amount: number) {
+        const stripeInfoInstance: StripeInfo = await this.getStripeInfo(userId);
+        if (!stripeInfoInstance) {
+            throw new BadRequestException();
+        }
+
+        const { accountId } = stripeInfoInstance;
+        const response = {
+            error: false,
+            response: ''
+        };
+
+        try {
+            const transfer: Stripe.Transfer = await this.stripe.transfers.create({
+                amount: +(amount * 100).toFixed(2),
+                currency: 'gbp',
+                destination: accountId,
+            });
+
+            response.response = JSON.stringify(transfer);
+        } catch (e) {
+            response.error = true;
+            response.response = JSON.stringify(e);
+        }
+
+        return response;
     }
 
     async retryFailedSubscriptionsCharge() {
@@ -703,15 +733,81 @@ export class StripeService {
         return false;
     }
 
+    /**
+     * 
+     * Charges saving pod order or random member
+     * 
+     * 
+     */
     async handleSavingPodCharges() {
         const savingPods: SavingPodToCharge[] = await this.savingPodSrvc.getSavingPodsToCharge();
 
         if (savingPods.length) {
-            console.log(JSON.stringify(savingPods, null, 2));
-            // saving pod member transactions for user id to find out non paid members
-            // have to group data like
-            // saving pod => member => pending
+            for (const pod of savingPods) {
+                if (!pod.members.length) {
+                    continue;
+                }
+
+                const podId = (pod._id as any).toHexString();
+
+                const allOrderFalse = pod.members.every(member => !member.order);
+                let memberId;
+                if (allOrderFalse) {
+                    const memberIndex = Math.floor(Math.random() * pod.members.length);
+                    const member = pod.members[memberIndex];
+                    memberId = (member.user as any).toHexString();
+                } else {
+                    const members = pod.members.sort((member1, member2) => member1.order - member2.order);
+                    const member = members[0];
+                    memberId = (member.user as any).toHexString();
+                }
+
+                const amountToCharge = (pod.amount / pod.members.length).toFixed(2);
+                const netAmountToCharge = this.totalAmountToCharge(+amountToCharge);
+                
+                const chargeCustomer: ChargeCustomer = await this.chargeCustomerV2(memberId, netAmountToCharge);
+                // const transferResponse = await this.transfer(memberId, netAmountToCharge);
+
+                let memberUpdateError = null;
+                try {
+                    const updateResponse = await this.savingPodSrvc.updatePodMemberPaidAt(podId, memberId);
+                    if (!(updateResponse.acknowledged && updateResponse.modifiedCount)) {
+                        memberUpdateError = JSON.stringify(updateResponse);
+                    }
+                } catch (e) {
+                    memberUpdateError = JSON.stringify(e);
+                }
+
+                const podMemberTransaction = {
+                    user: memberId,
+                    savingPod: podId,
+                    paid: chargeCustomer.error === false,
+                    amountPaid: netAmountToCharge,
+                    paymentDate: Date.now(),
+                    status: !chargeCustomer.error ? PaymentStatus.PAID : PaymentStatus.FAILED,
+                    paymentReponse: JSON.stringify({
+                        chargeResponse: chargeCustomer.response,
+                        // transferResponse,
+                        memberUpdate: {
+                            error: memberUpdateError !== null,
+                            response: memberUpdateError
+                        }
+                    })
+                };
+                await this.podMemberTransactionModel.create(podMemberTransaction);
+            }
         } 
+    }
+
+    private totalAmountToCharge(amount: number): number {
+        const percentage = 0.0335;
+        const fixedAmount = 0.20;
+
+        const amountWithFixedAmount = amount + fixedAmount;
+
+        const totalAmount = (amountWithFixedAmount) / (1 - percentage);
+
+        return +totalAmount.toFixed(2);
     }
 
     private async getNotPaidSubscriptions(): Promise<UserSubscriptionFees[]> {

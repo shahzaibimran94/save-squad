@@ -1,7 +1,7 @@
 import { ForbiddenException } from '@nestjs/common';
 import { Injectable } from '@nestjs/common';
 import { InjectModel } from '@nestjs/mongoose';
-import { Model, Types } from 'mongoose';
+import { Model, Types, UpdateWriteOpResult } from 'mongoose';
 import { JwtAndSubscription } from 'src/modules/subscriptions/interfaces/jwt-with-subscription.interface';
 import { CreatePodDto } from './dto/create-pod.dto';
 import { InvitationStatus, Member, MemberPod } from './interfaces/member.interface';
@@ -243,6 +243,26 @@ export class SavingPodsService {
         };
     }
 
+    /**
+     * 
+     * @param podId {string}
+     * @param memberUserId {string}
+     * 
+     * Add a current date for a specified member of specifed saving pod
+     * 
+     * @returns {Promise<UpdateWriteOpResult>}
+     */
+    async updatePodMemberPaidAt(podId: string, memberUserId: string, ): Promise<UpdateWriteOpResult> {
+        return await this.savingPodModel.updateOne({
+            _id: podId,
+            "members.user": memberUserId
+        }, {
+            $set: {
+                "members.$.paidAt": new Date()
+            }
+        });
+    }
+
     async sendNotificationToPodMembers(podId: string): Promise<void> {
         const savingPod = await this.getPodWithUserEmailPhone(podId);
         const members = savingPod.members.filter((member: Member) => (member.invitationStatus as any) === InvitationStatus.PENDING);
@@ -370,21 +390,39 @@ export class SavingPodsService {
               }
             },
             {
-              $project: {
-                amount: 1,
-                startDate: 1,
-                members: {
-                  $map: {
-                    input: "$members",
-                    as: "member",
-                    in: {
-                        order: "$$member.order",
-                        userId: "$$member.user",
+                $project: {
+                  amount: 1,
+                  startDate: 1,
+                  members: {
+                    $filter: {
+                      input: "$members",
+                      as: "member",
+                      cond: {
+                        $or: [
+                          { $eq: ["$$member.paidAt", null] }, // paidAt is null or missing
+                          { $not: { $ifNull: ["$$member.paidAt", false] } } // Handle missing field
+                        ]
+                      }
+                    }
+                  }
+                }
+              },
+              {
+                $project: {
+                  amount: 1,
+                  startDate: 1,
+                  members: {
+                    $map: {
+                      input: "$members",
+                      as: "member",
+                      in: {
+                        user: "$$member.user",
+                        order: "$$member.order"
+                      }
                     }
                   }
                 }
               }
-            }
         ]);
     }
 

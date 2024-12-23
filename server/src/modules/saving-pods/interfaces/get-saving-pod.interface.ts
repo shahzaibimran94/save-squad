@@ -5,7 +5,7 @@ export interface SavingPodToCharge {
     amount: number;
     startDate: Date;
     members: {
-        userId: ObjectId;
+        user: ObjectId;
         order: number;
     }[];
 }

@@ -36,6 +36,10 @@ export class SavingPod {
             order: {
                 type: Number,
                 default: 0
+            },
+            paidAt: {
+                type: Date,
+                default: null
             }
         }
       ],

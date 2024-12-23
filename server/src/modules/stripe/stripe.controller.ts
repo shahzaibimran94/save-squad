@@ -100,11 +100,11 @@ export class StripeController {
     }
 
     // A formula to charge a pod member
-    // Amount + 3.35% + 0.20 => Math.round(result)
+    // Amount + 3.35% + 0.20 => result
 
     @Cron(CronExpression.EVERY_10_SECONDS)
     chargeForSavingPod() {
-        if (!this.isDevelopment) {
+        if (true || !this.isDevelopment) {
             this.logger.debug(`${new Date().toISOString()} Charging members of pods.`);
             this.service.handleSavingPodCharges();
         }
