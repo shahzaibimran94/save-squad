@@ -248,19 +248,35 @@ export class SavingPodsService {
      * @param podId {string}
      * @param memberUserId {string}
      * 
-     * Add a current date for a specified member of specifed saving pod
+     * Add a chargedAt for all members
+     * and Add a transferAt for given member
      * 
      * @returns {Promise<UpdateWriteOpResult>}
      */
-    async updatePodMemberPaidAt(podId: string, memberUserId: string, ): Promise<UpdateWriteOpResult> {
-        return await this.savingPodModel.updateOne({
+    async updatePodMemberDate(podId: string, memberUserId: string): Promise<UpdateWriteOpResult[]> {
+        const today = new Date();
+
+        const after7Days = new Date();
+        after7Days.setDate(today.getDate() + 7);
+
+        const addTranferAtResponse = await this.savingPodModel.updateOne({
             _id: podId,
             "members.user": memberUserId
         }, {
             $set: {
-                "members.$.paidAt": new Date()
+                "members.$.tranferAt": after7Days
             }
         });
+
+        const addChargedAtResponse = await this.savingPodModel.updateOne({
+            _id: podId,
+        }, {
+            $set: {
+                "members.$[].chargedAt": today
+            }
+        });
+
+        return [addTranferAtResponse]
     }
 
     async sendNotificationToPodMembers(podId: string): Promise<void> {

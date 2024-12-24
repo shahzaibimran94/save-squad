@@ -4,3 +4,13 @@ export interface TransactionResponse {
     paymentStatus: string;
     paymentResponse: string;
 }
+
+export interface PodMemberTransaction {
+    user: string;
+    savingPod: string;
+    paid: boolean;
+    amountPaid: number;
+    paymentDate: Date;
+    status: string;
+    paymentReponse: string;
+}

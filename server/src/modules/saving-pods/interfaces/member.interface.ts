@@ -13,7 +13,11 @@ export interface Member {
     invitationStatus?: string;
     addedAt?: Date;
     order?: number;
-    paidAt?: Date; // date when amount transfered to the account
+    chargedAt?: Date;
+    transferAt?: Date;
+    transferedAt?: Date;
+    payAt?: Date;
+    paidAt?: Date;
 }
 
 export interface MemberPod {

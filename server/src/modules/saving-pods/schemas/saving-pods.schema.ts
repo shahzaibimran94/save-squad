@@ -6,7 +6,7 @@ import { InvitationStatus, Member } from '../interfaces/member.interface';
 
 export type SavingPodDocument = HydratedDocument<SavingPod>;
 
-@Schema({ timestamps: true })
+@Schema({ timestamps: true, strict: false })
 export class SavingPod {
   @Prop({ type: mongoose.Schema.Types.ObjectId, ref: 'User' })
   user: User;
@@ -18,8 +18,7 @@ export class SavingPod {
   startDate: Date;
 
   @Prop({
-      type: [
-        {
+      type: [{
             user: {
                 type: mongoose.Schema.Types.ObjectId,
                 ref: 'User'
@@ -37,12 +36,27 @@ export class SavingPod {
                 type: Number,
                 default: 0
             },
+            chargedAt: {
+                type: Date,
+                default: null
+            },
+            transferAt: {
+                type: Date,
+                default: null
+            },
+            transferedAt: {
+                type: Date,
+                default: null
+            },
+            payAt: {
+                type: Date,
+                default: null
+            },
             paidAt: {
                 type: Date,
                 default: null
             }
-        }
-      ],
+        }],
       default: []
   })
   members: Member[];

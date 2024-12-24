@@ -3,7 +3,7 @@ import { BadRequestException } from '@nestjs/common';
 import { Injectable } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { InjectModel } from '@nestjs/mongoose';
-import { Model, ObjectId } from 'mongoose';
+import { Model, ObjectId, UpdateWriteOpResult } from 'mongoose';
 import { JwtValidateResponse } from 'src/modules/auth/interfaces/jwt-validate-response.interface';
 import { UserDocument } from 'src/modules/auth/schemas/user.schema';
 import { SharedService } from 'src/modules/shared/shared.service';
@@ -19,7 +19,7 @@ import { AddCardDto } from './dto/add-card.dto';
 import { ChargeCustomerDto } from './dto/charge-customer.dto';
 import { ChargeCustomer } from './interfaces/charge-customer.interface';
 import { BankInfo, CardInfo, PaymentMethodsInfo } from './interfaces/payment-methods-info.interface';
-import { TransactionResponse } from './interfaces/transaction.interface';
+import { PodMemberTransaction, TransactionResponse } from './interfaces/transaction.interface';
 import { VerificationSessionResponse } from './interfaces/verification-session.interface';
 import { RetryTransaction } from './schemas/retry-transaction.schema';
 import { PaymentStatus, SavingPodMemberTransaction } from './schemas/saving-pod-member-transactions.schema';
@@ -735,13 +735,14 @@ export class StripeService {
 
     /**
      * 
-     * Charges saving pod order or random member
-     * 
+     * Charges all members and then set date for transferAt for specific member
+     * This selected member will be paid for the current month
      * 
      */
     async handleSavingPodCharges() {
         // add here a method to save a reminder for member with an x amount to tranfer to his account after 7 - 10 days
         const savingPods: SavingPodToCharge[] = await this.savingPodSrvc.getSavingPodsToCharge();
+        const podMemberTransactions: PodMemberTransaction[] = [];
 
         if (savingPods.length) {
             for (const pod of savingPods) {
@@ -752,7 +753,7 @@ export class StripeService {
                 const podId = (pod._id as any).toHexString();
 
                 const allOrderFalse = pod.members.every(member => !member.order);
-                let memberId;
+                let memberId; // A member who will be paid current month
                 if (allOrderFalse) {
                     const memberIndex = Math.floor(Math.random() * pod.members.length);
                     const member = pod.members[memberIndex];
@@ -766,38 +767,61 @@ export class StripeService {
                 const amountToCharge = (pod.amount / pod.members.length).toFixed(2);
                 const netAmountToCharge = this.totalAmountToCharge(+amountToCharge);
                 
-                const chargeCustomer: ChargeCustomer = await this.chargeCustomerV2(memberId, netAmountToCharge);
-                // const transferResponse = await this.transfer(memberId, netAmountToCharge);
+                const podInstance = await this.savingPodSrvc.getPodInstance(podId);
+            
+                const chargeMembersInstances = podInstance.members.map((member) => this.chargeCustomerV2(member.user.toString(), netAmountToCharge));
+                const chargeMembersResponse: PromiseSettledResult<ChargeCustomer>[] = await Promise.allSettled(chargeMembersInstances);
 
                 let memberUpdateError = null;
                 try {
-                    const updateResponse = await this.savingPodSrvc.updatePodMemberPaidAt(podId, memberId);
-                    if (!(updateResponse.acknowledged && updateResponse.modifiedCount)) {
-                        memberUpdateError = JSON.stringify(updateResponse);
-                    }
+                    const updateResponse: UpdateWriteOpResult[] = await this.savingPodSrvc.updatePodMemberDate(podId, memberId);
+                    memberUpdateError = JSON.stringify(updateResponse);
                 } catch (e) {
                     memberUpdateError = JSON.stringify(e);
                 }
 
-                const podMemberTransaction = {
-                    user: memberId,
-                    savingPod: podId,
-                    paid: chargeCustomer.error === false,
-                    amountPaid: netAmountToCharge,
-                    paymentDate: Date.now(),
-                    status: !chargeCustomer.error ? PaymentStatus.PAID : PaymentStatus.FAILED,
-                    paymentReponse: JSON.stringify({
-                        chargeResponse: chargeCustomer.response,
-                        // transferResponse,
-                        memberUpdate: {
-                            error: memberUpdateError !== null,
-                            response: memberUpdateError
-                        }
-                    })
-                };
-                await this.podMemberTransactionModel.create(podMemberTransaction);
+                let index = 0;
+                for (const response of chargeMembersResponse) {
+                    const member = podInstance.members[index];
+                    const success = response.status === 'fulfilled';
+
+                    let paid = false;
+                    let chargeResponse = '';
+                    if (success) {
+                        const apiResponse =  (response as PromiseFulfilledResult<ChargeCustomer>).value
+                        paid = apiResponse.error === false;
+                        chargeResponse = apiResponse.response;
+                    } else {
+                        const apiResponse =  (response as PromiseRejectedResult).reason;
+                        chargeResponse = JSON.stringify(apiResponse);
+                    }
+
+                    podMemberTransactions.push({
+                        user: member.user.toString(),
+                        savingPod: podId,
+                        paid: paid,
+                        amountPaid: netAmountToCharge,
+                        paymentDate: new Date(),
+                        status: paid ? PaymentStatus.PAID : PaymentStatus.FAILED,
+                        paymentReponse: JSON.stringify({
+                            chargeResponse: chargeResponse,
+                            memberUpdate: {
+                                error: memberUpdateError !== null,
+                                response: memberUpdateError
+                            }
+                        })
+                    });
+
+                    index = index + 1;
+                }
             }
-        } 
+
+            if (podMemberTransactions.length) {
+                await this.podMemberTransactionModel.insertMany(podMemberTransactions);
+            }
+        }
+
+        console.log('handleSavingPodCharges execution completed');
     }
 
     private totalAmountToCharge(amount: number): number {
