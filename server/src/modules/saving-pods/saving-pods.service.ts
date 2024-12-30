@@ -276,7 +276,7 @@ export class SavingPodsService {
             }
         });
 
-        return [addTranferAtResponse]
+        return [addTranferAtResponse, addChargedAtResponse]
     }
 
     async sendNotificationToPodMembers(podId: string): Promise<void> {

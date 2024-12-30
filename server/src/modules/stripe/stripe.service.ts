@@ -740,7 +740,6 @@ export class StripeService {
      * 
      */
     async handleSavingPodCharges() {
-        // add here a method to save a reminder for member with an x amount to tranfer to his account after 7 - 10 days
         const savingPods: SavingPodToCharge[] = await this.savingPodSrvc.getSavingPodsToCharge();
         const podMemberTransactions: PodMemberTransaction[] = [];
 
