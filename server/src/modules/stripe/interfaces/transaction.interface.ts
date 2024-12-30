@@ -13,4 +13,5 @@ export interface PodMemberTransaction {
     paymentDate: Date;
     status: string;
     paymentReponse: string;
+    transactionType: string;
 }

@@ -22,7 +22,7 @@ import { BankInfo, CardInfo, PaymentMethodsInfo } from './interfaces/payment-met
 import { PodMemberTransaction, TransactionResponse } from './interfaces/transaction.interface';
 import { VerificationSessionResponse } from './interfaces/verification-session.interface';
 import { RetryTransaction } from './schemas/retry-transaction.schema';
-import { PaymentStatus, SavingPodMemberTransaction } from './schemas/saving-pod-member-transactions.schema';
+import { PaymentStatus, SavingPodMemberTransaction, TransactionType } from './schemas/saving-pod-member-transactions.schema';
 import { StripeInfo, StripeInfoDocument } from './schemas/stripe-info.schema';
 import { SubscriptionTransaction } from './schemas/user-subscription-transaction.schema';
 
@@ -802,6 +802,7 @@ export class StripeService {
                         amountPaid: netAmountToCharge,
                         paymentDate: new Date(),
                         status: paid ? PaymentStatus.PAID : PaymentStatus.FAILED,
+                        transactionType: TransactionType.CHARGE,
                         paymentReponse: JSON.stringify({
                             chargeResponse: chargeResponse,
                             memberUpdate: {

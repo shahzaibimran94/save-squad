@@ -12,6 +12,12 @@ export enum PaymentStatus {
   FAILED = 'failed',
 }
 
+export enum TransactionType {
+  CHARGE = 'charge',
+  TRANSFER = 'transfer',
+  PAYOUT = 'payout',
+}
+
 @Schema({ timestamps: true })
 export class SavingPodMemberTransaction {
   @Prop({ type: mongoose.Schema.Types.ObjectId, ref: 'User' })
@@ -31,6 +37,9 @@ export class SavingPodMemberTransaction {
 
   @Prop({ default: PaymentStatus.PENDING, enum: Object.values(PaymentStatus) })
   status: string;
+
+  @Prop({ enum: Object.values(TransactionType) })
+  transactionType: string;
 
   @Prop()
   paymentReponse: string;
