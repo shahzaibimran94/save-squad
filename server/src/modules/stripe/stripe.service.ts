@@ -874,7 +874,7 @@ export class StripeService {
         return account.individual.verification.status === 'verified';
     }
 
-    async testFn(user: JwtValidateResponse) {
-        return { message: 'testing' };
+    async testFn(user?: JwtValidateResponse) {
+        return await this.savingPodSrvc.getSavingPodForTransfer();
     }
 }

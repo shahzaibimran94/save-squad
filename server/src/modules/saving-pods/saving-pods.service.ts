@@ -383,6 +383,7 @@ export class SavingPodsService {
         return crypto.randomBytes(32).toString("hex"); // Generates a 64-character hex token
     }
 
+    // fix to get ones with transferedAt as null
     async getSavingPodsToCharge(): Promise<SavingPodToCharge[]> {
         const today = new Date();
         const dayOfMonth = today.getDate();
@@ -439,6 +440,45 @@ export class SavingPodsService {
                   }
                 }
               }
+        ]);
+    }
+
+    async getSavingPodForTransfer() {
+        // member who has tranfer at and payout as null
+        return await this.savingPodModel.aggregate([
+            {
+                $match: {
+                    active: true, 
+                    expired: false, 
+                    members: { $exists: true, $ne: [] }
+                },
+            },
+            {
+                $project: {
+                    matchingSubDocuments: {
+                        $filter: {
+                            input: "$members",
+                            as: "member",
+                            cond: {
+                                $eq: [
+                                    { $dayOfMonth: { $ifNull: ["$$member.tranferAt", new Date(0)] } },
+                                    { $dayOfMonth: new Date() }
+                                ]
+                            }
+                        }
+                    }
+                }
+            },
+            {
+                $match: {
+                    "matchingSubDocuments.0": { $exists: true } // Only include documents with at least one match
+                }
+            },
+            {
+                $project: {
+                  users: "$matchingSubDocuments.user"
+                }
+            }
         ]);
     }
 
