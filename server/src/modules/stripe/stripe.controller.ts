@@ -111,6 +111,6 @@ export class StripeController {
     async transferToAccount() {
         this.logger.debug(`${new Date().toISOString()} Transfer to members of pods.`);
         const res = await this.service.testFn();
-        console.log(JSON.stringify(res, null, 2));
+        console.log(res);
     }
 }

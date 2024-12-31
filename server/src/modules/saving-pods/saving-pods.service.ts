@@ -17,7 +17,7 @@ import { ConfigService } from '@nestjs/config';
 import { SharedService } from 'src/modules/shared/shared.service';
 import { InvitationUser } from './interfaces/invitation-user.interface';
 import { GenericResponse } from 'src/modules/shared/interfaces/common.interface';
-import { SavingPodToCharge } from './interfaces/get-saving-pod.interface';
+import { SavingPodToCharge, SavingPodToTranfer } from './interfaces/get-saving-pod.interface';
 
 @Injectable()
 export class SavingPodsService {
@@ -443,8 +443,7 @@ export class SavingPodsService {
         ]);
     }
 
-    async getSavingPodForTransfer() {
-        // member who has tranfer at and payout as null
+    async getSavingPodForTransfer(): Promise<SavingPodToTranfer[]> {
         return await this.savingPodModel.aggregate([
             {
                 $match: {
@@ -460,9 +459,19 @@ export class SavingPodsService {
                             input: "$members",
                             as: "member",
                             cond: {
-                                $eq: [
-                                    { $dayOfMonth: { $ifNull: ["$$member.tranferAt", new Date(0)] } },
-                                    { $dayOfMonth: new Date() }
+                                $and: [
+                                    {
+                                        $eq: [
+                                            { $dayOfMonth: { $ifNull: ["$$member.tranferAt", new Date(0)] } },
+                                            { $dayOfMonth: new Date() },
+                                        ],
+                                    },
+                                    {
+                                        $eq: [
+                                            { $ifNull: ["$$member.payAt", null] },
+                                            null,
+                                        ],
+                                    },
                                 ]
                             }
                         }
@@ -476,9 +485,10 @@ export class SavingPodsService {
             },
             {
                 $project: {
-                  users: "$matchingSubDocuments.user"
+                  user: "$matchingSubDocuments.user"
                 }
-            }
+            },
+            { $unwind: "$user" }
         ]);
     }
 

@@ -9,3 +9,8 @@ export interface SavingPodToCharge {
         order: number;
     }[];
 }
+
+export interface SavingPodToTranfer {
+    _id: ObjectId;
+    user: ObjectId;
+}

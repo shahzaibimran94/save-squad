@@ -875,6 +875,9 @@ export class StripeService {
     }
 
     async testFn(user?: JwtValidateResponse) {
+        /**
+         * get instances go for transfer for a member and then create payAt date and then save instance
+         */
         return await this.savingPodSrvc.getSavingPodForTransfer();
     }
 }
