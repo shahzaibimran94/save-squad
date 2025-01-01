@@ -108,9 +108,8 @@ export class StripeController {
     }
 
     @Cron(CronExpression.EVERY_10_SECONDS)
-    async transferToAccount() {
+    transferToAccount() {
         this.logger.debug(`${new Date().toISOString()} Transfer to members of pods.`);
-        const res = await this.service.testFn();
-        console.log(res);
+        this.service.handleSavingPodTransfer();
     }
 }

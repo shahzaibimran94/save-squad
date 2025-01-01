@@ -13,4 +13,5 @@ export interface SavingPodToCharge {
 export interface SavingPodToTranfer {
     _id: ObjectId;
     user: ObjectId;
+    tranferAt: Date;
 }

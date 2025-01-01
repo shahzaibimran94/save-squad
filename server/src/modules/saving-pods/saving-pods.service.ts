@@ -18,6 +18,7 @@ import { SharedService } from 'src/modules/shared/shared.service';
 import { InvitationUser } from './interfaces/invitation-user.interface';
 import { GenericResponse } from 'src/modules/shared/interfaces/common.interface';
 import { SavingPodToCharge, SavingPodToTranfer } from './interfaces/get-saving-pod.interface';
+import { PodMemberTransactionDto } from './dto/pod-member-transaction.dto';
 
 @Injectable()
 export class SavingPodsService {
@@ -279,6 +280,32 @@ export class SavingPodsService {
         return [addTranferAtResponse, addChargedAtResponse]
     }
 
+    /**
+     * 
+     * @param podId {string}
+     * @param memberUserId {string}
+     * 
+     * Set dates for a transferedAt and payAt for given member
+     * 
+     * @returns {Promise<UpdateWriteOpResult>}
+     */
+    async updatePodMemberOfTransfer(podId: string, memberUserId: string): Promise<UpdateWriteOpResult> {
+        const today = new Date();
+
+        const after7Days = new Date();
+        after7Days.setDate(today.getDate() + 7);
+
+        return await this.savingPodModel.updateOne({
+            _id: podId,
+            "members.user": memberUserId
+        }, {
+            $set: {
+                "members.$.transferedAt": today,
+                "members.$.payAt": after7Days
+            }
+        });
+    }
+
     async sendNotificationToPodMembers(podId: string): Promise<void> {
         const savingPod = await this.getPodWithUserEmailPhone(podId);
         const members = savingPod.members.filter((member: Member) => (member.invitationStatus as any) === InvitationStatus.PENDING);
@@ -461,10 +488,10 @@ export class SavingPodsService {
                             cond: {
                                 $and: [
                                     {
-                                        $eq: [
-                                            { $dayOfMonth: { $ifNull: ["$$member.tranferAt", new Date(0)] } },
-                                            { $dayOfMonth: new Date() },
-                                        ],
+                                        $and: [
+                                            { $eq: [{ $type: "$$member.tranferAt" }, "date"] }, // Ensure it is a valid date
+                                            { $eq: [ { $dayOfMonth: "$$member.tranferAt" }, { $dayOfMonth: new Date() } ] }
+                                        ]
                                     },
                                     {
                                         $eq: [
@@ -485,10 +512,12 @@ export class SavingPodsService {
             },
             {
                 $project: {
-                  user: "$matchingSubDocuments.user"
+                  user: "$matchingSubDocuments.user",
+                  tranferAt: "$matchingSubDocuments.tranferAt"
                 }
             },
-            { $unwind: "$user" }
+            { $unwind: "$user" },
+            { $unwind: "$tranferAt" }
         ]);
     }
 

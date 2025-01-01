@@ -13,13 +13,13 @@ import { PaymentSubmitType } from 'src/utils/enums/payment-submit-type.enum';
 import { PaymentType } from 'src/utils/enums/payment-type.enum';
 import { getMonthDateRange, getTimestampMonthDateRange } from 'src/utils/helpers/date.helper';
 import Stripe from 'stripe';
-import { SavingPodToCharge } from '../saving-pods/interfaces/get-saving-pod.interface';
+import { SavingPodToCharge, SavingPodToTranfer } from '../saving-pods/interfaces/get-saving-pod.interface';
 import { SavingPodsService } from '../saving-pods/saving-pods.service';
 import { AddCardDto } from './dto/add-card.dto';
 import { ChargeCustomerDto } from './dto/charge-customer.dto';
 import { ChargeCustomer } from './interfaces/charge-customer.interface';
 import { BankInfo, CardInfo, PaymentMethodsInfo } from './interfaces/payment-methods-info.interface';
-import { PodMemberTransaction, TransactionResponse } from './interfaces/transaction.interface';
+import { ChargeTransaction, PodMemberTransaction, TransactionResponse } from './interfaces/transaction.interface';
 import { VerificationSessionResponse } from './interfaces/verification-session.interface';
 import { RetryTransaction } from './schemas/retry-transaction.schema';
 import { PaymentStatus, SavingPodMemberTransaction, TransactionType } from './schemas/saving-pod-member-transactions.schema';
@@ -540,6 +540,7 @@ export class StripeService {
     }
 
     async transfer(userId: string, amount: number) {
+        console.log(amount);
         const stripeInfoInstance: StripeInfo = await this.getStripeInfo(userId);
         if (!stripeInfoInstance) {
             throw new BadRequestException();
@@ -822,6 +823,76 @@ export class StripeService {
         }
 
         console.log('handleSavingPodCharges execution completed');
+    }
+
+    /**
+     * 
+     * Find a member who has to be transfered funds for current month
+     * and funds will be transfered to connect account
+     * 
+     */
+    async handleSavingPodTransfer() {
+        // TODO: Have to fix type => tranfer everywhere needed
+        const pods: SavingPodToTranfer[] = await this.savingPodSrvc.getSavingPodForTransfer();
+
+        for (const pod of pods) {
+            const podId = (pod._id as any).toHexString();
+
+            const transferAt = new Date(pod.tranferAt);
+            transferAt.setDate(transferAt.getDate() - 7);
+            // to avoid getting next day date
+            const onlyDate = new Date(Date.UTC(transferAt.getFullYear(), transferAt.getMonth(), transferAt.getDate()));
+            const dateToLookFor = onlyDate.toISOString().split("T")[0];
+            
+            const transaction: ChargeTransaction = await this.podMemberTransactionModel.findOne({
+                $expr: {
+                    $eq: [
+                        { $dateToString: { format: "%Y-%m-%d", date: "$paymentDate" } },
+                        dateToLookFor
+                    ]
+                },
+                savingPod: pod._id,
+                user: pod.user,
+                status: PaymentStatus.PAID,
+                transactionType: TransactionType.CHARGE,
+            }).select('-_id amountPaid paymentDate');
+
+            const userId = (pod.user as any).toHexString();
+            let transferError = null;
+            let transferResponse = null;
+            let isMemberUpdated = false;
+            let memberUpdateError = null;
+            try {
+                transferResponse = await this.transfer(userId, transaction.amountPaid);
+                try {
+                    const memberUpdateResponse: UpdateWriteOpResult = await this.savingPodSrvc.updatePodMemberOfTransfer(podId, userId);
+                    isMemberUpdated = memberUpdateResponse.modifiedCount === 1;
+                } catch (e) {
+                    memberUpdateError = e;
+                }
+            } catch (e) {
+                transferError = JSON.stringify(e);
+            }
+
+            await this.podMemberTransactionModel.create({
+                user: userId,
+                savingPod: pod._id,
+                paid: transferError === null,
+                amountPaid: transaction.amountPaid,
+                paymentDate: new Date(),
+                status: transferError === null ? PaymentStatus.PAID : PaymentStatus.FAILED,
+                transactionType: TransactionType.TRANSFER,
+                paymentReponse: JSON.stringify({
+                    transferResponse: transferResponse,
+                    memberUpdate: {
+                        error: isMemberUpdated,
+                        response: memberUpdateError
+                    }
+                })
+            });
+        }
+
+        console.log('handleSavingPodTransfer execution completed');
     }
 
     private totalAmountToCharge(amount: number): number {
