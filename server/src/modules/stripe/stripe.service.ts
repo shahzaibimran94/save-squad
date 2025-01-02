@@ -832,7 +832,6 @@ export class StripeService {
      * 
      */
     async handleSavingPodTransfer() {
-        // TODO: Have to fix type => tranfer everywhere needed
         const pods: SavingPodToTranfer[] = await this.savingPodSrvc.getSavingPodForTransfer();
 
         for (const pod of pods) {

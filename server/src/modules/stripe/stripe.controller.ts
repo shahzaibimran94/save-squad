@@ -107,9 +107,11 @@ export class StripeController {
         }
     }
 
-    @Cron(CronExpression.EVERY_10_SECONDS)
+    @Cron(CronExpression.EVERY_DAY_AT_8AM)
     transferToAccount() {
-        this.logger.debug(`${new Date().toISOString()} Transfer to members of pods.`);
-        this.service.handleSavingPodTransfer();
+        if (!this.isDevelopment) {
+            this.logger.debug(`${new Date().toISOString()} Transfer to members of pods.`);
+            this.service.handleSavingPodTransfer();
+        }
     }
 }
