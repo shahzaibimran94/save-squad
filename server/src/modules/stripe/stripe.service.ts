@@ -13,7 +13,7 @@ import { PaymentSubmitType } from 'src/utils/enums/payment-submit-type.enum';
 import { PaymentType } from 'src/utils/enums/payment-type.enum';
 import { getMonthDateRange, getTimestampMonthDateRange } from 'src/utils/helpers/date.helper';
 import Stripe from 'stripe';
-import { SavingPodToCharge, SavingPodToTranfer } from '../saving-pods/interfaces/get-saving-pod.interface';
+import { SavingPodForPayout, SavingPodToCharge, SavingPodToTranfer } from '../saving-pods/interfaces/get-saving-pod.interface';
 import { SavingPodsService } from '../saving-pods/saving-pods.service';
 import { AddCardDto } from './dto/add-card.dto';
 import { ChargeCustomerDto } from './dto/charge-customer.dto';
@@ -568,6 +568,34 @@ export class StripeService {
         return response;
     }
 
+    async payout(userId: string, amount: number) {
+        const stripeInfoInstance: StripeInfo = await this.getStripeInfo(userId);
+        if (!stripeInfoInstance) {
+            throw new BadRequestException();
+        }
+
+        const { accountId } = stripeInfoInstance;
+        const response = {
+            error: false,
+            response: ''
+        };
+
+        try {
+            const payout: Stripe.Payout = await this.stripe.payouts.create({
+                amount: +(amount * 100).toFixed(2),
+                currency: 'gbp',
+                method: 'standard'
+            }, { stripeAccount: accountId });
+
+            response.response = JSON.stringify(payout);
+        } catch (e) {
+            response.error = true;
+            response.response = JSON.stringify(e);
+        }
+
+        return response;
+    }
+
     async retryFailedSubscriptionsCharge() {
         const { start, end } = getMonthDateRange();
         
@@ -892,6 +920,77 @@ export class StripeService {
         }
 
         console.log('handleSavingPodTransfer execution completed');
+    }
+
+    /**
+     * 
+     * Find a member who has to be paid for current month
+     * 
+    */
+    async handleSavingPodPayout() {
+        const pods: SavingPodForPayout[] = await this.savingPodSrvc.getSavingPodForPayout();
+
+        for (const pod of pods) {
+            const podId = (pod._id as any).toHexString();
+
+            const payAt = new Date(pod.payAt);
+            payAt.setDate(payAt.getDate() - 7);
+            // to avoid getting next day date
+            const onlyDate = new Date(Date.UTC(payAt.getFullYear(), payAt.getMonth(), payAt.getDate()));
+            const dateToLookFor = onlyDate.toISOString().split("T")[0];
+            
+            const transaction: ChargeTransaction = await this.podMemberTransactionModel.findOne({
+                $expr: {
+                    $eq: [
+                        { $dateToString: { format: "%Y-%m-%d", date: "$paymentDate" } },
+                        dateToLookFor
+                    ]
+                },
+                savingPod: pod._id,
+                user: pod.user,
+                status: PaymentStatus.PAID,
+                transactionType: TransactionType.TRANSFER,
+            }).select('-_id amountPaid paymentDate');
+
+            const userId = (pod.user as any).toHexString();
+            let payoutError = null;
+            let payoutResponse = null;
+            let isMemberUpdated = false;
+            let memberUpdateError = null;
+            let memberUpdateResponse: UpdateWriteOpResult[] | null = null;
+            try {
+                payoutResponse = await this.payout(userId, transaction.amountPaid);
+                try {
+                    memberUpdateResponse = await this.savingPodSrvc.updatePodMemberForPayout(podId, userId);
+                    isMemberUpdated = memberUpdateResponse[0].modifiedCount === 1;
+                } catch (e) {
+                    memberUpdateError = e;
+                }
+            } catch (e) {
+                payoutError = JSON.stringify(e);
+            }
+
+            const isPaid = !payoutResponse.error && payoutError === null;
+            await this.podMemberTransactionModel.create({
+                user: userId,
+                savingPod: pod._id,
+                paid: isPaid,
+                amountPaid: transaction.amountPaid,
+                paymentDate: new Date(),
+                status: isPaid ? PaymentStatus.PAID : PaymentStatus.FAILED,
+                transactionType: TransactionType.PAYOUT,
+                paymentReponse: JSON.stringify({
+                    payoutResponse: payoutResponse,
+                    memberUpdate: {
+                        error: !isMemberUpdated,
+                        errorResponse: memberUpdateError,
+                        response: memberUpdateResponse
+                    }
+                })
+            });
+        }
+
+        console.log('handleSavingPodPayout execution completed');
     }
 
     private totalAmountToCharge(amount: number): number {

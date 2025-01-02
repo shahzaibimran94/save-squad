@@ -305,6 +305,37 @@ export class SavingPodsService {
         });
     }
 
+    async updatePodMemberForPayout(podId: string, memberUserId: string): Promise<UpdateWriteOpResult[]> {
+        const memberUpdateResponse: UpdateWriteOpResult = await this.savingPodModel.updateOne({
+            _id: podId,
+            "members.user": memberUserId
+        }, {
+            $set: {
+                "members.$.paidAt": new Date(),
+            }
+        });
+
+        const savingPod: SavingPodDocument = await this.savingPodModel.findOne({
+            _id: podId,
+        });
+
+        const allHasPaidOut = savingPod.members.every((member: Member) => member['paidAt']);
+        if (allHasPaidOut) {
+            const podUpdateResponse: UpdateWriteOpResult = await this.savingPodModel.updateOne({
+                _id: podId,
+            }, {
+                $set: {
+                    expired: true,
+                    active: false
+                }
+            });
+
+            return [memberUpdateResponse, podUpdateResponse];
+        }
+
+        return [memberUpdateResponse];
+    }
+
     async sendNotificationToPodMembers(podId: string): Promise<void> {
         const savingPod = await this.getPodWithUserEmailPhone(podId);
         const members = savingPod.members.filter((member: Member) => (member.invitationStatus as any) === InvitationStatus.PENDING);
