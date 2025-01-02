@@ -15,3 +15,9 @@ export interface SavingPodToTranfer {
     user: ObjectId;
     transferAt: Date;
 }
+
+export interface SavingPodForPayout {
+    _id: ObjectId;
+    user: ObjectId;
+    payAt: Date;
+}

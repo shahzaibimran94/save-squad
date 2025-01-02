@@ -17,8 +17,7 @@ import { ConfigService } from '@nestjs/config';
 import { SharedService } from 'src/modules/shared/shared.service';
 import { InvitationUser } from './interfaces/invitation-user.interface';
 import { GenericResponse } from 'src/modules/shared/interfaces/common.interface';
-import { SavingPodToCharge, SavingPodToTranfer } from './interfaces/get-saving-pod.interface';
-import { PodMemberTransactionDto } from './dto/pod-member-transaction.dto';
+import { SavingPodForPayout, SavingPodToCharge, SavingPodToTranfer } from './interfaces/get-saving-pod.interface';
 
 @Injectable()
 export class SavingPodsService {
@@ -519,6 +518,57 @@ export class SavingPodsService {
             { $unwind: "$user" },
             { $unwind: "$transferAt" }
         ]);
+    }
+
+    async getSavingPodForPayout(): Promise<SavingPodForPayout[]> {
+        return await this.savingPodModel.aggregate([
+            {
+                $match: {
+                    active: true, 
+                    expired: false, 
+                    members: { $exists: true, $ne: [] }
+                },
+            },
+            {
+                $project: {
+                    matchingSubDocuments: {
+                        $filter: {
+                            input: "$members",
+                            as: "member",
+                            cond: {
+                                $and: [
+                                    {
+                                        $and: [
+                                            { $eq: [{ $type: "$$member.payAt" }, "date"] }, // Ensure it is a valid date
+                                            { $eq: [ { $dayOfMonth: "$$member.payAt" }, { $dayOfMonth: new Date() } ] }
+                                        ]
+                                    },
+                                    {
+                                        $eq: [
+                                            { $ifNull: ["$$member.paidAt", null] },
+                                            null,
+                                        ],
+                                    },
+                                ]
+                            }
+                        }
+                    }
+                }
+            },
+            {
+                $match: {
+                    "matchingSubDocuments.0": { $exists: true } // Only include documents with at least one match
+                }
+            },
+            {
+                $project: {
+                  user: "$matchingSubDocuments.user",
+                  payAt: "$matchingSubDocuments.payAt"
+                }
+            },
+            { $unwind: "$user" },
+            { $unwind: "$payAt" }
+        ])
     }
 
     private validatePodAmount(amount: number, subcriptionOptions: SubscriptionOptions) {
