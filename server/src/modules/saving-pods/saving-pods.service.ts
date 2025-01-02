@@ -260,12 +260,12 @@ export class SavingPodsService {
         const after7Days = new Date();
         after7Days.setDate(today.getDate() + 7);
 
-        const addTranferAtResponse = await this.savingPodModel.updateOne({
+        const addTransferAtResponse = await this.savingPodModel.updateOne({
             _id: podId,
             "members.user": memberUserId
         }, {
             $set: {
-                "members.$.tranferAt": after7Days
+                "members.$.transferAt": after7Days
             }
         });
 
@@ -277,7 +277,7 @@ export class SavingPodsService {
             }
         });
 
-        return [addTranferAtResponse, addChargedAtResponse]
+        return [addTransferAtResponse, addChargedAtResponse]
     }
 
     /**
@@ -489,8 +489,8 @@ export class SavingPodsService {
                                 $and: [
                                     {
                                         $and: [
-                                            { $eq: [{ $type: "$$member.tranferAt" }, "date"] }, // Ensure it is a valid date
-                                            { $eq: [ { $dayOfMonth: "$$member.tranferAt" }, { $dayOfMonth: new Date() } ] }
+                                            { $eq: [{ $type: "$$member.transferAt" }, "date"] }, // Ensure it is a valid date
+                                            { $eq: [ { $dayOfMonth: "$$member.transferAt" }, { $dayOfMonth: new Date() } ] }
                                         ]
                                     },
                                     {
@@ -513,11 +513,11 @@ export class SavingPodsService {
             {
                 $project: {
                   user: "$matchingSubDocuments.user",
-                  tranferAt: "$matchingSubDocuments.tranferAt"
+                  transferAt: "$matchingSubDocuments.transferAt"
                 }
             },
             { $unwind: "$user" },
-            { $unwind: "$tranferAt" }
+            { $unwind: "$transferAt" }
         ]);
     }
 

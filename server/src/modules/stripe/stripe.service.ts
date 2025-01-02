@@ -838,7 +838,7 @@ export class StripeService {
         for (const pod of pods) {
             const podId = (pod._id as any).toHexString();
 
-            const transferAt = new Date(pod.tranferAt);
+            const transferAt = new Date(pod.transferAt);
             transferAt.setDate(transferAt.getDate() - 7);
             // to avoid getting next day date
             const onlyDate = new Date(Date.UTC(transferAt.getFullYear(), transferAt.getMonth(), transferAt.getDate()));
