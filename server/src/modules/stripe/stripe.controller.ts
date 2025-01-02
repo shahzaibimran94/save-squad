@@ -122,4 +122,6 @@ export class StripeController {
             this.service.handleSavingPodPayout();
         }
     }
+
+    // update transfer and payout to not use amountPaid instead pay the amount/number of members
 }
