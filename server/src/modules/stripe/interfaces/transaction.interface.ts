@@ -17,6 +17,5 @@ export interface PodMemberTransaction {
 }
 
 export interface ChargeTransaction {
-    amountPaid: number;
     paymentDate: Date;
 }

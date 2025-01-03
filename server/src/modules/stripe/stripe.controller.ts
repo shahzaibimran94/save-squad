@@ -123,5 +123,6 @@ export class StripeController {
         }
     }
 
-    // update transfer and payout to not use amountPaid instead pay the amount/number of members
+    // TODOS: Have to add a feature to update transaction as paid using webhook and set as pending for charge, transfer and payout
+    // TODOS: Make retry method for charge, transfer and payout using queue or jobs whatever suitable
 }

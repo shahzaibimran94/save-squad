@@ -865,24 +865,7 @@ export class StripeService {
         for (const pod of pods) {
             const podId = (pod._id as any).toHexString();
 
-            const transferAt = new Date(pod.transferAt);
-            transferAt.setDate(transferAt.getDate() - 7);
-            // to avoid getting next day date
-            const onlyDate = new Date(Date.UTC(transferAt.getFullYear(), transferAt.getMonth(), transferAt.getDate()));
-            const dateToLookFor = onlyDate.toISOString().split("T")[0];
-            
-            const transaction: ChargeTransaction = await this.podMemberTransactionModel.findOne({
-                $expr: {
-                    $eq: [
-                        { $dateToString: { format: "%Y-%m-%d", date: "$paymentDate" } },
-                        dateToLookFor
-                    ]
-                },
-                savingPod: pod._id,
-                user: pod.user,
-                status: PaymentStatus.PAID,
-                transactionType: TransactionType.CHARGE,
-            }).select('-_id amountPaid paymentDate');
+            const amount = +(pod.amount / pod.membersCount).toFixed(2);
 
             const userId = (pod.user as any).toHexString();
             let transferError = null;
@@ -890,7 +873,7 @@ export class StripeService {
             let isMemberUpdated = false;
             let memberUpdateError = null;
             try {
-                transferResponse = await this.transfer(userId, transaction.amountPaid);
+                transferResponse = await this.transfer(userId, amount);
                 try {
                     const memberUpdateResponse: UpdateWriteOpResult = await this.savingPodSrvc.updatePodMemberOfTransfer(podId, userId);
                     isMemberUpdated = memberUpdateResponse.modifiedCount === 1;
@@ -905,7 +888,7 @@ export class StripeService {
                 user: userId,
                 savingPod: pod._id,
                 paid: transferError === null,
-                amountPaid: transaction.amountPaid,
+                amountPaid: amount,
                 paymentDate: new Date(),
                 status: transferError === null ? PaymentStatus.PAID : PaymentStatus.FAILED,
                 transactionType: TransactionType.TRANSFER,
@@ -933,24 +916,7 @@ export class StripeService {
         for (const pod of pods) {
             const podId = (pod._id as any).toHexString();
 
-            const payAt = new Date(pod.payAt);
-            payAt.setDate(payAt.getDate() - 7);
-            // to avoid getting next day date
-            const onlyDate = new Date(Date.UTC(payAt.getFullYear(), payAt.getMonth(), payAt.getDate()));
-            const dateToLookFor = onlyDate.toISOString().split("T")[0];
-            
-            const transaction: ChargeTransaction = await this.podMemberTransactionModel.findOne({
-                $expr: {
-                    $eq: [
-                        { $dateToString: { format: "%Y-%m-%d", date: "$paymentDate" } },
-                        dateToLookFor
-                    ]
-                },
-                savingPod: pod._id,
-                user: pod.user,
-                status: PaymentStatus.PAID,
-                transactionType: TransactionType.TRANSFER,
-            }).select('-_id amountPaid paymentDate');
+            const amount = +(pod.amount / pod.membersCount).toFixed(2);
 
             const userId = (pod.user as any).toHexString();
             let payoutError = null;
@@ -959,7 +925,7 @@ export class StripeService {
             let memberUpdateError = null;
             let memberUpdateResponse: UpdateWriteOpResult[] | null = null;
             try {
-                payoutResponse = await this.payout(userId, transaction.amountPaid);
+                payoutResponse = await this.payout(userId, amount);
                 try {
                     memberUpdateResponse = await this.savingPodSrvc.updatePodMemberForPayout(podId, userId);
                     isMemberUpdated = memberUpdateResponse[0].modifiedCount === 1;
@@ -975,7 +941,7 @@ export class StripeService {
                 user: userId,
                 savingPod: pod._id,
                 paid: isPaid,
-                amountPaid: transaction.amountPaid,
+                amountPaid: amount,
                 paymentDate: new Date(),
                 status: isPaid ? PaymentStatus.PAID : PaymentStatus.FAILED,
                 transactionType: TransactionType.PAYOUT,
@@ -991,6 +957,31 @@ export class StripeService {
         }
 
         console.log('handleSavingPodPayout execution completed');
+    }
+
+    /**
+     * @deprecated 
+     * 
+     */
+    private async getTransaction(podId: ObjectId, userId: ObjectId, date: Date, transactionType: string): Promise<ChargeTransaction> {
+        const transferAt = new Date(date);
+        transferAt.setDate(transferAt.getDate() - 7);
+        // to avoid getting next day date
+        const onlyDate = new Date(Date.UTC(transferAt.getFullYear(), transferAt.getMonth(), transferAt.getDate()));
+        const dateToLookFor = onlyDate.toISOString().split("T")[0];
+        
+        return await this.podMemberTransactionModel.findOne({
+            $expr: {
+                $eq: [
+                    { $dateToString: { format: "%Y-%m-%d", date: "$paymentDate" } },
+                    dateToLookFor
+                ]
+            },
+            savingPod: podId,
+            user: userId,
+            status: PaymentStatus.PAID,
+            transactionType: transactionType,
+        }).select('-_id paymentDate');
     }
 
     private totalAmountToCharge(amount: number): number {

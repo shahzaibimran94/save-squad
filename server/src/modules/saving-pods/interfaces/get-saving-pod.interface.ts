@@ -14,10 +14,14 @@ export interface SavingPodToTranfer {
     _id: ObjectId;
     user: ObjectId;
     transferAt: Date;
+    amount: number;
+    membersCount: number;
 }
 
 export interface SavingPodForPayout {
     _id: ObjectId;
     user: ObjectId;
     payAt: Date;
+    amount: number;
+    membersCount: number;
 }

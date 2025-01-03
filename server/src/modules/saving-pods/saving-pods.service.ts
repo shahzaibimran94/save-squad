@@ -511,6 +511,8 @@ export class SavingPodsService {
             },
             {
                 $project: {
+                    amount: 1,
+                    membersCount: { $size: "$members" },
                     matchingSubDocuments: {
                         $filter: {
                             input: "$members",
@@ -562,6 +564,8 @@ export class SavingPodsService {
             },
             {
                 $project: {
+                    amount: 1,
+                    membersCount: { $size: "$members" },
                     matchingSubDocuments: {
                         $filter: {
                             input: "$members",
