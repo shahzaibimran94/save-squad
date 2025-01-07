@@ -1,13 +1,13 @@
 import React, { useState } from 'react';
 import { TouchableOpacity, StyleSheet, Text, View } from 'react-native';
-import { theme } from '../core/theme';
-import { emailValidator, passwordValidator } from '../core/utils';
-import Background from '../app-example/components/Background';
-import BackButton from '../app-example/components/BackButton';
-import Logo from '../app-example/components/Logo';
-import Header from '../app-example/components/Header';
-import TextInput from '../app-example/components/TextInput';
-import Button from '../app-example/components/Button';
+import { theme } from '@/core/theme';
+import { emailValidator, passwordValidator } from '@/core/utils';
+import Background from '@/components/Background';
+import BackButton from '@/components/BackButton';
+import Logo from '@/components/Logo';
+import Header from '@/components/Header';
+import TextInput from '@/components/TextInput';
+import Button from '@/components/Button';
 
 type Props = {
   navigation: {
