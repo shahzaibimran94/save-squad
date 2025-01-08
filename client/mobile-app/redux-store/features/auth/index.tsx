@@ -1,6 +1,6 @@
 import { createApi, fetchBaseQuery } from '@reduxjs/toolkit/query/react';
 
-export const authSlice = createApi({
+export const authApi = createApi({
     reducerPath: 'api/auth',
     baseQuery: fetchBaseQuery({ baseUrl: process.env.EXPO_PUBLIC_API_URL }),
     endpoints: (builder) => ({
@@ -21,4 +21,4 @@ export const authSlice = createApi({
     }),
 });
 
-export const { useLoginMutation, useSignupMutation } = authSlice;
+export const { useLoginMutation, useSignupMutation } = authApi;

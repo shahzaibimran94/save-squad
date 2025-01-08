@@ -1,5 +1,5 @@
-import React, { useState } from 'react';
-import { TouchableOpacity, StyleSheet, Text, View, Platform } from 'react-native';
+import React, { useEffect, useState } from 'react';
+import { TouchableOpacity, StyleSheet, Text, View, Platform, ActivityIndicator } from 'react-native';
 import { theme } from '@/core/theme';
 import { passwordValidator } from '@/core/utils';
 import Background from '@/components/Background';
@@ -9,7 +9,7 @@ import TextInput from '@/components/TextInput';
 import Button from '@/components/Button';
 import { router } from 'expo-router';
 import { useLoginMutation } from '../redux-store/features/auth';
-import { useDispatch } from 'react-redux';
+import { useDispatch, useSelector } from 'react-redux';
 import { setAsLoggedIn } from '../redux-store/features/auth/slice';
 import * as SecureStore from 'expo-secure-store';
 import AsyncStorage from '@react-native-async-storage/async-storage';
@@ -20,6 +20,36 @@ const LoginScreen = () => {
     const [phone, setPhone] = useState({ value: '', error: '' });
     const [password, setPassword] = useState({ value: '', error: '' });
     const [_error, setError] = useState<string | null>(null);
+    const [loading, setLoading] = useState(true);
+
+    const isAuthenticated = useSelector((state: any) => state.auth.isAuthenticated);
+
+    useEffect(() => {
+        if (!isAuthenticated) {
+            (async () => {
+                let token;
+                try {
+                    if (Platform.OS !== 'web') {
+                        token = await SecureStore.getItemAsync('token');
+                    } else {
+                        token = await AsyncStorage.getItem('token');
+                    }
+                    if (token) {
+                        dispatch(setAsLoggedIn());
+                        router.navigate('/dashboard');
+                    }
+                    console.log('ssss');
+                    setLoading(false);
+                } catch (_) {
+                    setLoading(false);
+                }
+            })();
+        }
+    }, []);
+
+    if (loading) {
+        return <ActivityIndicator />;
+    }
 
     const _onLoginPressed = async () => {
         setError(null);
@@ -55,6 +85,7 @@ const LoginScreen = () => {
 
             <TextInput
                 label="Phone"
+                placeholder="7123456789"
                 returnKeyType="next"
                 value={phone.value}
                 onChangeText={text => setPhone({ value: text, error: '' })}
