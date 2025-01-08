@@ -16,6 +16,12 @@ async function bootstrap() {
     new ValidationPipe({}),
   );
 
+  app.enableCors({
+    origin: 'http://localhost:8081', // Replace with your desired domain
+    methods: 'GET,HEAD,PUT,PATCH,POST,DELETE',
+    credentials: true, // If you want to include cookies in requests
+  });
+
   app.set('trust proxy', 1);
 
   // Configure Swagger
