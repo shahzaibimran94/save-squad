@@ -8,14 +8,9 @@ import Logo from '@/components/Logo';
 import Header from '@/components/Header';
 import TextInput from '@/components/TextInput';
 import Button from '@/components/Button';
+import { router } from 'expo-router';
 
-type Props = {
-  navigation: {
-    navigate: (scene: string) => void;
-  };
-};
-
-const LoginScreen = ({ navigation }: Props) => {
+const LoginScreen = () => {
   const [email, setEmail] = useState({ value: '', error: '' });
   const [password, setPassword] = useState({ value: '', error: '' });
 
@@ -29,13 +24,11 @@ const LoginScreen = ({ navigation }: Props) => {
       return;
     }
 
-    navigation.navigate('Dashboard');
+    router.navigate('/dashboard');
   };
 
   return (
     <Background>
-        <BackButton goBack={() => navigation.navigate('HomeScreen')} />
-
         <Logo />
 
         <Header>Welcome back.</Header>
@@ -64,7 +57,7 @@ const LoginScreen = ({ navigation }: Props) => {
 
         <View style={styles.forgotPassword}>
             <TouchableOpacity
-            onPress={() => navigation.navigate('ForgotPasswordScreen')}
+            onPress={() => router.navigate('/forgot-password')}
             >
             <Text style={styles.label}>Forgot your password?</Text>
             </TouchableOpacity>
@@ -76,7 +69,7 @@ const LoginScreen = ({ navigation }: Props) => {
 
         <View style={styles.row}>
             <Text style={styles.label}>Don’t have an account? </Text>
-            <TouchableOpacity onPress={() => navigation.navigate('RegisterScreen')}>
+            <TouchableOpacity onPress={() => router.navigate('/sign-up')}>
             <Text style={styles.link}>Sign up</Text>
             </TouchableOpacity>
         </View>
