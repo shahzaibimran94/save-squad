@@ -44,6 +44,8 @@ const LoginScreen = () => {
                     setLoading(false);
                 }
             })();
+        } else {
+            router.navigate('/dashboard');
         }
     }, []);
 

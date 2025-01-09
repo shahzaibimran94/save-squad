@@ -10,6 +10,7 @@ import { logout } from '../redux-store/features/auth/slice';
 import * as SecureStore from 'expo-secure-store';
 import { Platform } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import { useAuth } from '@/hooks/useAuth';
 
 const Dashboard = () => {
   const dispatch = useDispatch();
