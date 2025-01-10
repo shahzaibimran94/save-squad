@@ -38,7 +38,6 @@ const LoginScreen = () => {
                         dispatch(setAsLoggedIn());
                         router.navigate('/dashboard');
                     }
-                    console.log('ssss');
                     setLoading(false);
                 } catch (_) {
                     setLoading(false);

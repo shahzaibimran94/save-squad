@@ -5,33 +5,59 @@ import Logo from '@/components/Logo';
 import Header from '@/components/Header';
 import Button from '@/components/Button';
 import TextInput from '@/components/TextInput';
-import BackButton from '@/components/BackButton';
 import { theme } from '@/core/theme';
 import {
   emailValidator,
   passwordValidator,
   nameValidator,
+  phoneValidator
 } from '@/core/utils';
 import { router } from 'expo-router';
 
 const RegisterScreen = () => {
-  const [name, setName] = useState({ value: '', error: '' });
-  const [email, setEmail] = useState({ value: '', error: '' });
-  const [password, setPassword] = useState({ value: '', error: '' });
+  const [form, setForm] = useState({
+    firstName: '',
+    lastName: '',
+    mobile: '',
+    email: '',
+    password: ''
+  });
+  const [errors, setErrors] = useState({
+    firstName: '',
+    lastName: '',
+    mobile: '',
+    email: '',
+    password: ''
+  });
 
-  const _onSignUpPressed = () => {
-    const nameError = nameValidator(name.value);
-    const emailError = emailValidator(email.value);
-    const passwordError = passwordValidator(password.value);
+  const handleFieldChange = (name: string, value: string) => {
+    setForm({ ...form, [name]: value });
+  }
 
-    if (emailError || passwordError || nameError) {
-      setName({ ...name, error: nameError });
-      setEmail({ ...email, error: emailError });
-      setPassword({ ...password, error: passwordError });
+  const _onSignUpPressed = () => { 
+    const _errors = {
+      firstName: nameValidator(form.firstName, 'First name'),
+      lastName: nameValidator(form.lastName, 'Last name'),
+      email: emailValidator(form.email),
+      password: passwordValidator(form.password),
+      mobile: phoneValidator(form.mobile)
+    }
+
+    let hasError = false;
+    for (const field of Object.keys(_errors)) {
+      // @ts-ignore
+      if (_errors[field] !== '') {
+        hasError = true;
+        break;
+      }
+    }
+
+    if (hasError) {
+      setErrors(_errors);
       return;
     }
 
-    router.navigate('/dashboard');
+    // router.navigate('/dashboard');
   };
 
   return (
@@ -42,21 +68,44 @@ const RegisterScreen = () => {
       <Header>Create Account</Header>
 
       <TextInput
-        label="Name"
+        label="First name"
         returnKeyType="next"
-        value={name.value}
-        onChangeText={text => setName({ value: text, error: '' })}
-        error={!!name.error}
-        errorText={name.error}
+        value={form.firstName}
+        onChangeText={text => handleFieldChange('firstName', text)}
+        error={!!errors.firstName}
+        errorText={errors.firstName}
+      />
+
+      <TextInput
+        label="Last name"
+        returnKeyType="next"
+        value={form.lastName}
+        onChangeText={text => handleFieldChange('lastName', text)}
+        error={!!errors.lastName}
+        errorText={errors.lastName}
+      />
+
+      <TextInput
+          label="Phone"
+          placeholder="7000000000"
+          returnKeyType="next"
+          value={form.mobile}
+          onChangeText={text => handleFieldChange('mobile', text)}
+          error={!!errors.mobile}
+          errorText={errors.mobile}
+          autoCapitalize="none"
+          textContentType="telephoneNumber"
+          keyboardType="number-pad"
+          maxLength={10}
       />
 
       <TextInput
         label="Email"
         returnKeyType="next"
-        value={email.value}
-        onChangeText={text => setEmail({ value: text, error: '' })}
-        error={!!email.error}
-        errorText={email.error}
+        value={form.email}
+        onChangeText={text => handleFieldChange('email', text)}
+        error={!!errors.email}
+        errorText={errors.email}
         autoCapitalize="none"
         textContentType="emailAddress"
         keyboardType="email-address"
@@ -65,10 +114,10 @@ const RegisterScreen = () => {
       <TextInput
         label="Password"
         returnKeyType="done"
-        value={password.value}
-        onChangeText={text => setPassword({ value: text, error: '' })}
-        error={!!password.error}
-        errorText={password.error}
+        value={form.password}
+        onChangeText={text => handleFieldChange('password', text)}
+        error={!!errors.password}
+        errorText={errors.password}
         secureTextEntry
       />
 
