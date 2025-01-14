@@ -1,3 +1,4 @@
+import { LoginDto } from '@/interfaces/login.interface';
 import { createApi, fetchBaseQuery } from '@reduxjs/toolkit/query/react';
 
 export const authApi = createApi({
@@ -5,7 +6,7 @@ export const authApi = createApi({
     baseQuery: fetchBaseQuery({ baseUrl: process.env.EXPO_PUBLIC_API_URL }),
     endpoints: (builder) => ({
       login: builder.mutation({
-        query: (credentials) => ({
+        query: (credentials: LoginDto) => ({
           url: '/auth/login',
           method: 'POST',
           body: credentials,
