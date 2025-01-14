@@ -13,6 +13,7 @@ import { useDispatch, useSelector } from 'react-redux';
 import { setAsLoggedIn } from '../redux-store/features/auth/slice';
 import * as SecureStore from 'expo-secure-store';
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import { LoginResponse } from '@/interfaces/login.interface';
 
 const LoginScreen = () => {
     const dispatch = useDispatch();
@@ -62,7 +63,7 @@ const LoginScreen = () => {
         }
 
         try {
-            const userData = await login({ mobile: `+44${phone.value}`, password: password.value }).unwrap();
+            const userData: LoginResponse = await login({ mobile: `+44${phone.value}`, password: password.value }).unwrap();
             console.log('Logged in:', userData);
             if (Platform.OS !== 'web') {
                 await SecureStore.setItemAsync('token', userData.token);
